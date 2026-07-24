@@ -5,12 +5,14 @@ use crate::hazard::{EmptySlot, IntoJS, IntoJsConv, Slot, WasmAbi, WatConv};
 
 macro_rules! thread_local {
 	($($vis:vis static $name:ident: $ty:ty = $value:expr;)*) => {
-		#[cfg_attr(target_feature = "atomics", thread_local)]
-		$($vis static $name: $crate::util::LocalKey<$ty> = $crate::util::LocalKey::new($value);)*
+		$(
+			#[cfg_attr(target_feature = "atomics", thread_local)]
+			$vis static $name: $crate::util::LocalKey<$ty> = $crate::util::LocalKey::new($value);
+		)*
 	};
 }
 
-pub(crate) struct LocalKey<T>(T);
+pub(crate) struct LocalKey<T>(pub(crate) T);
 
 // SAFETY: Multi-threading is not possible without `atomics`.
 #[cfg(not(target_feature = "atomics"))]
@@ -88,7 +90,8 @@ const PTR_INTO_JS_WAT_CONV: Option<WatConv> = None;
 
 #[cfg(target_arch = "wasm64")]
 const PTR_INTO_JS_WAT_CONV: Option<WatConv> = Some(WatConv {
-	import: None,
+	imports: "",
+	locals: "",
 	conv: "f64.convert_i64_u",
 	r#type: "f64",
 });

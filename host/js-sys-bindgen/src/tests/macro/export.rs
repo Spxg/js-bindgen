@@ -55,14 +55,23 @@ fn wat_slot_conversions() {
 
 	inline_snap::inline_snap!(
 		wat,
-		r#"
-(import "env" "js_sys.externref.insert" (func $js_sys.externref.insert (@sym) (param externref) (result i32)))
-(import "env" "raw" (func $raw (@sym (name "__export_drop_value")) (param i32)))
-(func $export (@sym (name "drop_value")) (param $arg0_0 externref)
-  local.get $arg0_0
-  call $js_sys.externref.insert (@reloc)
-  call $raw (@reloc)
-)"#
+		"
+		(import \"js_sys\" \"externref.table\" (table $js_sys.import.externref.table (@sym (name \
+		 \"js_sys.externref.table\")) 2 externref))
+		(import \"env\" \"js_sys.externref.next\" (func $js_sys.externref.next (@sym) (result i32)))
+		(import \"env\" \"raw\" (func $raw (@sym (name \"__export_drop_value\")) (param i32)))
+		(func $export (@sym (name \"drop_value\")) (param $arg0_0 externref)
+		  (local $js_sys.externref.value externref)
+		  (local $js_sys.externref.index i32)
+		  local.get $arg0_0
+		  local.set $js_sys.externref.value
+		  call $js_sys.externref.next (@reloc)
+		  local.tee $js_sys.externref.index
+		  local.get $js_sys.externref.value
+		  table.set $js_sys.import.externref.table (@reloc)
+		  local.get $js_sys.externref.index
+		  call $raw (@reloc)
+		)"
 	);
 	assert_eq!(
 		js,
@@ -79,13 +88,27 @@ fn wat_slot_conversions() {
 
 	inline_snap::inline_snap!(
 		wat,
-		r#"
-(import "env" "js_sys.externref.take" (func $js_sys.externref.take (@sym) (param i32) (result externref)))
-(import "env" "raw" (func $raw (@sym (name "__export_undefined")) (result i32)))
-(func $export (@sym (name "undefined")) (result externref)
-  call $raw (@reloc)
-  call $js_sys.externref.take (@reloc)
-)"#
+		"
+		(import \"js_sys\" \"externref.table\" (table $js_sys.import.externref.table (@sym (name \
+		 \"js_sys.externref.table\")) 2 externref))
+		(import \"env\" \"js_sys.externref.recycle\" (func $js_sys.externref.recycle (@sym) (param i32)))
+		(import \"env\" \"raw\" (func $raw (@sym (name \"__export_undefined\")) (result i32)))
+		(func $export (@sym (name \"undefined\")) (result externref)
+		  (local $js_sys.externref.index i32)
+		  call $raw (@reloc)
+		  local.tee $js_sys.externref.index
+		  table.get $js_sys.import.externref.table (@reloc)
+		  local.get $js_sys.externref.index
+		  i32.const 2
+		  i32.ge_u
+		  if
+		    local.get $js_sys.externref.index
+		    ref.null extern
+		    table.set $js_sys.import.externref.table (@reloc)
+		    local.get $js_sys.externref.index
+		    call $js_sys.externref.recycle (@reloc)
+		  end
+		)"
 	);
 	assert_eq!(
 		js,
@@ -150,37 +173,53 @@ fn result() {
 
 	inline_snap::inline_snap!(
 		wat,
-		r#"
-(import "env" "js_sys.externref.take" (func $js_sys.externref.take (@sym) (param i32) (result externref)))
-(import "env" "raw" (func $raw (@sym (name "__export_checked_add")) (param i32) (param i64 i64) (param i64 i64)))
-(import "env" "__stack_pointer" (global $__stack_pointer (mut i32)))
-(func $export (@sym (name "checked_add")) (param $arg0_0 i64) (param $arg0_1 i64) (param $arg1_0 i64) (param $arg1_1 i64) (result externref i32 i64 i64)
-  (local $retptr i32)
-  global.get $__stack_pointer
-  i32.const 32
-  i32.sub
-  local.tee $retptr
-  global.set $__stack_pointer
-  local.get $retptr
-  local.get $arg0_0
-  local.get $arg0_1
-  local.get $arg1_0
-  local.get $arg1_1
-  call $raw (@reloc)
-  local.get $retptr
-  i32.load offset=0
-  call $js_sys.externref.take (@reloc)
-  local.get $retptr
-  i32.load offset=4
-  local.get $retptr
-  i64.load offset=8
-  local.get $retptr
-  i64.load offset=16
-  local.get $retptr
-  i32.const 32
-  i32.add
-  global.set $__stack_pointer
-)"#
+		"
+		(import \"js_sys\" \"externref.table\" (table $js_sys.import.externref.table (@sym (name \
+		 \"js_sys.externref.table\")) 2 externref))
+		(import \"env\" \"js_sys.externref.recycle\" (func $js_sys.externref.recycle (@sym) (param i32)))
+		(import \"env\" \"raw\" (func $raw (@sym (name \"__export_checked_add\")) (param i32) (param i64 \
+		 i64) (param i64 i64)))
+		(import \"env\" \"__stack_pointer\" (global $__stack_pointer (mut i32)))
+		(func $export (@sym (name \"checked_add\")) (param $arg0_0 i64) (param $arg0_1 i64) (param \
+		 $arg1_0 i64) (param $arg1_1 i64) (result externref i32 i64 i64)
+		  (local $retptr i32)
+		  (local $js_sys.externref.index i32)
+		  global.get $__stack_pointer
+		  i32.const 32
+		  i32.sub
+		  local.tee $retptr
+		  global.set $__stack_pointer
+		  local.get $retptr
+		  local.get $arg0_0
+		  local.get $arg0_1
+		  local.get $arg1_0
+		  local.get $arg1_1
+		  call $raw (@reloc)
+		  local.get $retptr
+		  i32.load offset=0
+		  local.tee $js_sys.externref.index
+		  table.get $js_sys.import.externref.table (@reloc)
+		  local.get $js_sys.externref.index
+		  i32.const 2
+		  i32.ge_u
+		  if
+		    local.get $js_sys.externref.index
+		    ref.null extern
+		    table.set $js_sys.import.externref.table (@reloc)
+		    local.get $js_sys.externref.index
+		    call $js_sys.externref.recycle (@reloc)
+		  end
+		  local.get $retptr
+		  i32.load offset=4
+		  local.get $retptr
+		  i64.load offset=8
+		  local.get $retptr
+		  i64.load offset=16
+		  local.get $retptr
+		  i32.const 32
+		  i32.add
+		  global.set $__stack_pointer
+		)"
 	);
 	assert_eq!(
 		js,

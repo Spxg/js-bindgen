@@ -6,7 +6,10 @@ use core::marker::PhantomData;
 use core::mem::{ManuallyDrop, MaybeUninit};
 use core::slice;
 
-use crate::externref::EXTERNREF_TABLE;
+use crate::externref::{
+	WAT_GET_CONV, WAT_INDEX_LOCAL, WAT_INSERT_CONV, WAT_INSERT_IMPORTS, WAT_INSERT_LOCALS,
+	WAT_OPTIONAL_INSERT_CONV, WAT_TABLE_IMPORT, WAT_TAKE_CONV, WAT_TAKE_IMPORTS, release,
+};
 use crate::hazard::{
 	FromJS, FromJsConv, IntoJS, JsCast, OptionIntoJS, ReturnAbi, ReturnMode, Slot, WatConv,
 };
@@ -44,19 +47,15 @@ impl Default for JsValueAbi {
 unsafe impl Slot for JsValueAbi {
 	const WAT_TYPE: &'static str = "i32";
 	const INTO_JS_WAT_CONV: Option<WatConv> = Some(WatConv {
-		import: Some(
-			"(import \"env\" \"js_sys.externref.take\" (func $js_sys.externref.take (@sym) (param \
-			 i32) (result externref)))",
-		),
-		conv: "call $js_sys.externref.take (@reloc)",
+		imports: WAT_TAKE_IMPORTS,
+		locals: WAT_INDEX_LOCAL,
+		conv: WAT_TAKE_CONV,
 		r#type: "externref",
 	});
 	const FROM_JS_WAT_CONV: Option<WatConv> = Some(WatConv {
-		import: Some(
-			"(import \"env\" \"js_sys.externref.insert\" (func $js_sys.externref.insert (@sym) \
-			 (param externref) (result i32)))",
-		),
-		conv: "call $js_sys.externref.insert (@reloc)",
+		imports: WAT_INSERT_IMPORTS,
+		locals: WAT_INSERT_LOCALS,
+		conv: WAT_INSERT_CONV,
 		r#type: "externref",
 	});
 }
@@ -71,11 +70,9 @@ unsafe impl ReturnAbi for JsValueAbi {
 unsafe impl Slot for JsValueRefAbi {
 	const WAT_TYPE: &'static str = "i32";
 	const INTO_JS_WAT_CONV: Option<WatConv> = Some(WatConv {
-		import: Some(
-			"(import \"env\" \"js_sys.externref.get\" (func $js_sys.externref.get (@sym) (param \
-			 i32) (result externref)))",
-		),
-		conv: "call $js_sys.externref.get (@reloc)",
+		imports: WAT_TABLE_IMPORT,
+		locals: "",
+		conv: WAT_GET_CONV,
 		r#type: "externref",
 	});
 }
@@ -86,19 +83,15 @@ unsafe impl Slot for JsValueRefAbi {
 unsafe impl Slot for OptionalJsValueAbi {
 	const WAT_TYPE: &'static str = "i32";
 	const INTO_JS_WAT_CONV: Option<WatConv> = Some(WatConv {
-		import: Some(
-			"(import \"env\" \"js_sys.externref.take\" (func $js_sys.externref.take (@sym) (param \
-			 i32) (result externref)))",
-		),
-		conv: "call $js_sys.externref.take (@reloc)",
+		imports: WAT_TAKE_IMPORTS,
+		locals: WAT_INDEX_LOCAL,
+		conv: WAT_TAKE_CONV,
 		r#type: "externref",
 	});
 	const FROM_JS_WAT_CONV: Option<WatConv> = Some(WatConv {
-		import: Some(
-			"(import \"env\" \"js_sys.optional.js_value\" (func $js_sys.optional.js_value (@sym) \
-			 (param externref) (result i32)))",
-		),
-		conv: "call $js_sys.optional.js_value (@reloc)",
+		imports: WAT_INSERT_IMPORTS,
+		locals: WAT_INSERT_LOCALS,
+		conv: WAT_OPTIONAL_INSERT_CONV,
 		r#type: "externref",
 	});
 }
@@ -151,36 +144,38 @@ impl JsValue {
 }
 
 impl Clone for JsValue {
+	#[inline]
 	fn clone(&self) -> Self {
 		js_bindgen::unsafe_global_wat!(
-			"(import \"env\" \"js_sys.externref.get\" (func $js_sys.externref.get (@sym) (param \
-			 i32) (result externref)))",
-			"(import \"env\" \"js_sys.externref.insert\" (func $js_sys.externref.insert (@sym) \
-			 (param externref) (result i32)))",
+			"(import \"js_sys\" \"externref.table\" (table $js_sys.import.externref.table (@sym \
+			 (name \"js_sys.externref.table\")) 2 externref))",
+			"(import \"env\" \"js_sys.externref.next\" (func $js_sys.externref.next (@sym) \
+			 (result i32)))",
 			"(func $js_sys.js_value.clone (@sym) (param $index i32) (result i32)",
+			"  (local $new_index i32)",
+			"  call $js_sys.externref.next (@reloc)",
+			"  local.tee $new_index",
 			"  local.get $index",
-			"  call $js_sys.externref.get (@reloc)",
-			"  call $js_sys.externref.insert (@reloc)",
+			"  table.get $js_sys.import.externref.table (@reloc)",
+			"  table.set $js_sys.import.externref.table (@reloc)",
+			"  local.get $new_index",
 			")",
 		);
 
 		unsafe extern "C" {
 			#[link_name = "js_sys.js_value.clone"]
-			safe fn clone(size: i32) -> i32;
+			safe fn clone(index: i32) -> i32;
 		}
 
-		if self.index > 1 {
-			Self::new(clone(self.index))
-		} else {
-			Self::new(self.index)
-		}
+		Self::new(clone(self.index))
 	}
 }
 
 impl Drop for JsValue {
+	#[inline]
 	fn drop(&mut self) {
 		if self.index > 1 {
-			EXTERNREF_TABLE.with(|table| table.try_borrow_mut().unwrap().remove(self.index));
+			release(self.index);
 		}
 	}
 }
@@ -258,21 +253,6 @@ unsafe impl<T: JsCast> FromJS for Option<T> {
 		(raw.0 != JsValue::UNDEFINED.index).then(|| T::unchecked_from(JsValue::new(raw.0)))
 	}
 }
-
-js_bindgen::unsafe_global_wat!(
-	"(import \"env\" \"js_sys.externref.insert\" (func $js_sys.externref.insert (@sym) (param \
-	 externref) (result i32)))",
-	"(func $js_sys.optional.js_value (@sym) (param $value externref) (result i32)",
-	"  local.get $value",
-	"  ref.is_null",
-	"  if (result i32)",
-	"    i32.const 0",
-	"  else",
-	"    local.get $value",
-	"    call $js_sys.externref.insert (@reloc)",
-	"  end",
-	")",
-);
 
 impl PartialEq for JsValue {
 	fn eq(&self, other: &Self) -> bool {

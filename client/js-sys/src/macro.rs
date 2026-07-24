@@ -28,4 +28,4 @@ pub use crate::{wat_export, wat_export_direct, wat_export_indirect, wat_export_n
 // WAT import shims.
 pub use crate::{wat_import, wat_import_output};
 // Shared WAT helpers.
-pub use crate::{wat_import_list, wat_imports, wat_input, wat_slots};
+pub use crate::{wat_imports, wat_input, wat_locals, wat_slots, wat_unique_list};

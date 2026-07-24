@@ -21,7 +21,8 @@ struct NumberSlot(u32);
 unsafe impl Slot for NumberSlot {
 	const WAT_TYPE: &'static str = "i32";
 	const INTO_JS_WAT_CONV: Option<WatConv> = Some(WatConv {
-		import: None,
+		imports: "",
+		locals: "",
 		conv: "f64.convert_i32_u",
 		r#type: "f64",
 	});

@@ -37,6 +37,10 @@ fn main() {
 	// ;; exports["option_u128"]((1n << 128n) - 2n) === (1n << 128n) - 1n
 	// ;; exports["option_i128"](undefined) === undefined
 	// ;; exports["option_i128"](-(1n << 127n)) === -(1n << 127n) + 1n
+	// ;; (() => { const value = {}; return exports["js_value_identity"](value) === value })()
+	// ;; exports["option_js_value"](undefined) === undefined
+	// ;; exports["option_js_value"](null) === undefined
+	// ;; (() => { const value = {}; return exports["option_js_value"](value) === value })()
 	// ;; exports["import_option_i32"](undefined) === undefined
 	// ;; exports["import_option_i32"](42) === 42
 	// ;; exports["checked_add_u128"](1n << 96n, 3n) === (1n << 96n) + 3n
@@ -227,6 +231,16 @@ fn option_u128(value: Option<u128>) -> Option<u128> {
 #[js_sys]
 fn option_i128(value: Option<i128>) -> Option<i128> {
 	value.map(|value| value + 1)
+}
+
+#[js_sys]
+fn js_value_identity(value: JsValue) -> JsValue {
+	value
+}
+
+#[js_sys]
+fn option_js_value(value: Option<JsValue>) -> Option<JsValue> {
+	value
 }
 
 #[js_sys]

@@ -121,33 +121,30 @@ pub struct WatSlot {
 	pub abi: &'static str,
 	/// The type visible at the JavaScript boundary.
 	pub boundary: &'static str,
-	/// An optional WAT import required by the conversion.
-	pub import: &'static str,
+	/// Optional WAT imports required by the conversion.
+	pub imports: &'static str,
+	/// Optional scratch locals required by the conversion.
+	pub locals: &'static str,
 	/// WAT instructions that convert between `abi` and `boundary`.
 	pub conv: &'static str,
 }
 
 const fn wat_slot<S: Slot>(wat_conv: Option<WatConv>) -> WatSlot {
-	let (boundary, import, conv) = match wat_conv {
+	let (boundary, imports, locals, conv) = match wat_conv {
 		Some(WatConv {
-			import,
+			imports,
+			locals,
 			conv,
 			r#type,
-		}) => (
-			r#type,
-			match import {
-				Some(import) => import,
-				None => "",
-			},
-			conv,
-		),
-		None => (S::WAT_TYPE, "", ""),
+		}) => (r#type, imports, locals, conv),
+		None => (S::WAT_TYPE, "", "", ""),
 	};
 
 	WatSlot {
 		abi: S::WAT_TYPE,
 		boundary,
-		import,
+		imports,
+		locals,
 		conv,
 	}
 }
@@ -219,11 +216,20 @@ pub const fn wat_indirect_conv<T: ReturnFromJS>() -> &'static str {
 }
 
 #[must_use]
-pub const fn wat_output_import<T: ReturnFromJS>() -> &'static str {
+pub const fn wat_output_imports<T: ReturnFromJS>() -> &'static str {
 	if return_from_js_is_direct::<T>() {
-		from_js_wat_slots::<T>()[0].import
+		from_js_wat_slots::<T>()[0].imports
 	} else {
 		""
+	}
+}
+
+#[must_use]
+pub const fn wat_output_locals<T: ReturnFromJS>() -> &'static str {
+	if return_from_js_is_direct::<T>() {
+		from_js_wat_slots::<T>()[0].locals
+	} else {
+		into_js_wat_slots::<crate::util::PtrMut<()>>()[0].locals
 	}
 }
 

@@ -38,10 +38,8 @@ macro_rules! wat_import {
 					$($crate::r#macro::into_js_wat_slots::<$input>(),)*
 				],
 				extras = [
-					$($crate::r#macro::wat_output_import::<$output>(),)?
-					$($crate::r#macro::wat_result_imports::<$output>()[0],)?
-					$($crate::r#macro::wat_result_imports::<$output>()[1],)?
-					$($crate::r#macro::wat_result_imports::<$output>()[2],)?
+					$($crate::r#macro::wat_output_imports::<$output>(),)?
+					$($crate::r#macro::wat_result_imports::<$output>(),)?
 				],
 			),
 			"\n(func $",
@@ -50,6 +48,15 @@ macro_rules! wat_import {
 			$($crate::r#macro::wat_import_output!(shim_param, $output),)?
 			$($crate::r#macro::wat_input!(import params; $par, $input),)*
 			$($crate::r#macro::wat_import_output!(shim_result, $output),)?
+			$crate::r#macro::wat_locals!(
+				slots = [
+					$($crate::r#macro::into_js_wat_slots::<$input>(),)*
+				],
+				extras = [
+					$($crate::r#macro::wat_output_locals::<$output>(),)?
+					$($crate::r#macro::wat_result_locals::<$output>(),)?
+				],
+			),
 			$($crate::r#macro::wat_result_try::<$output>(),)?
 			$($crate::r#macro::wat_import_output!(shim_retptr, $output),)?
 			$(

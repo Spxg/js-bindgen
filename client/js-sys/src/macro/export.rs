@@ -32,6 +32,12 @@ macro_rules! wat_export_direct {
 			$export,
 			"\"))",
 			$($crate::r#macro::wat_input!(export params; $par, $input),)*
+			$crate::r#macro::wat_locals!(
+				slots = [
+					$($crate::r#macro::from_js_wat_slots::<$input>(),)*
+				],
+				extras = [],
+			),
 			"\n",
 			$($crate::r#macro::wat_input!(export gets; $par, $input),)*
 			"  call $raw (@reloc)\n",
@@ -63,7 +69,15 @@ macro_rules! wat_export_direct {
 			$($crate::r#macro::wat_input!(export params; $par, $input),)*
 			" (result ",
 			SLOT.boundary,
-			")\n",
+			")",
+			$crate::r#macro::wat_locals!(
+				slots = [
+					$($crate::r#macro::from_js_wat_slots::<$input>(),)*
+					$crate::r#macro::return_into_js_wat_slots::<$output>(),
+				],
+				extras = [],
+			),
+			"\n",
 			$($crate::r#macro::wat_input!(export gets; $par, $input),)*
 			"  call $raw (@reloc)",
 			$crate::r#macro::wat_conv_prefix(SLOT.conv),
@@ -115,7 +129,15 @@ macro_rules! wat_export_indirect {
 			")\n",
 			"  (local $retptr ",
 			POINTER,
-			")\n",
+			")",
+			$crate::r#macro::wat_locals!(
+				slots = [
+					$($crate::r#macro::from_js_wat_slots::<$input>(),)*
+					$crate::r#macro::return_into_js_wat_slots::<$output>(),
+				],
+				extras = [],
+			),
+			"\n",
 			"  global.get $__stack_pointer\n  ",
 			POINTER,
 			".const ",

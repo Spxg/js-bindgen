@@ -4,93 +4,161 @@ pub const fn wat_conv_prefix(value: &str) -> &'static str {
 }
 
 #[must_use]
-pub const fn wat_import_iter<'a>(values: &[&'a str], index: usize) -> Option<&'a str> {
-	let value = values[index];
+const fn wat_line_end(value: &str, start: usize) -> usize {
+	let bytes = value.as_bytes();
+	let mut end = start;
 
-	if value.is_empty() {
-		return None;
+	while end < bytes.len() && bytes[end] != b'\n' {
+		end += 1;
 	}
 
-	let mut candidate_index = 0;
+	end
+}
 
-	while candidate_index < index {
-		let candidate = values[candidate_index];
+const fn wat_lines_equal(
+	left: &str,
+	left_start: usize,
+	left_end: usize,
+	right: &str,
+	right_start: usize,
+	right_end: usize,
+) -> bool {
+	if left_end - left_start != right_end - right_start {
+		return false;
+	}
 
-		if value.len() == candidate.len() {
-			let mut byte_index = 0;
-			let mut equal = true;
+	let left = left.as_bytes();
+	let right = right.as_bytes();
+	let mut offset = 0;
 
-			while byte_index < value.len() {
-				if value.as_bytes()[byte_index] != candidate.as_bytes()[byte_index] {
-					equal = false;
-					break;
-				}
-
-				byte_index += 1;
-			}
-
-			if equal {
-				return None;
-			}
+	while left_start + offset < left_end {
+		if left[left_start + offset] != right[right_start + offset] {
+			return false;
 		}
 
-		candidate_index += 1;
+		offset += 1;
 	}
 
-	Some(value)
+	true
+}
+
+const fn wat_line_was_seen(
+	values: &[&str],
+	value_index: usize,
+	line_start: usize,
+	line_end: usize,
+) -> bool {
+	let value = values[value_index];
+	let mut candidate_value_index = 0;
+
+	while candidate_value_index <= value_index {
+		let candidate = values[candidate_value_index];
+		let limit = if candidate_value_index == value_index {
+			line_start
+		} else {
+			candidate.len()
+		};
+		let mut candidate_start = 0;
+
+		while candidate_start < limit {
+			let candidate_end = wat_line_end(candidate, candidate_start);
+
+			if candidate_end != candidate_start
+				&& wat_lines_equal(
+					value,
+					line_start,
+					line_end,
+					candidate,
+					candidate_start,
+					candidate_end,
+				) {
+				return true;
+			}
+
+			candidate_start = candidate_end + 1;
+		}
+
+		candidate_value_index += 1;
+	}
+
+	false
+}
+
+#[must_use]
+pub const fn wat_unique_lines_len(values: &[&str]) -> usize {
+	let mut size = 0;
+	let mut value_index = 0;
+
+	while value_index < values.len() {
+		let value = values[value_index];
+		let mut line_start = 0;
+
+		while line_start < value.len() {
+			let line_end = wat_line_end(value, line_start);
+
+			if line_end != line_start
+				&& !wat_line_was_seen(values, value_index, line_start, line_end)
+			{
+				size += 1 + line_end - line_start;
+			}
+
+			line_start = line_end + 1;
+		}
+
+		value_index += 1;
+	}
+
+	size
+}
+
+#[must_use]
+pub const fn render_wat_unique_lines<const SIZE: usize>(values: &[&str]) -> [u8; SIZE] {
+	let mut output = [0; SIZE];
+	let mut output_index = 0;
+	let mut value_index = 0;
+
+	while value_index < values.len() {
+		let value = values[value_index];
+		let bytes = value.as_bytes();
+		let mut line_start = 0;
+
+		while line_start < bytes.len() {
+			let line_end = wat_line_end(value, line_start);
+
+			if line_end != line_start
+				&& !wat_line_was_seen(values, value_index, line_start, line_end)
+			{
+				output[output_index] = b'\n';
+				output_index += 1;
+
+				let mut byte_index = line_start;
+				while byte_index < line_end {
+					output[output_index] = bytes[byte_index];
+					output_index += 1;
+					byte_index += 1;
+				}
+			}
+
+			line_start = line_end + 1;
+		}
+
+		value_index += 1;
+	}
+
+	output
 }
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! wat_import_list {
+macro_rules! wat_unique_list {
 	($($value:expr),* $(,)?) => {{
 		const VALUES: &[&::core::primitive::str] = &[$($value),*];
-		const SIZE: ::core::primitive::usize = {
-			let mut size = 0;
-			let mut index = 0;
+		const SIZE: ::core::primitive::usize =
+			$crate::r#macro::wat_unique_lines_len(VALUES);
+		const OUTPUT: [::core::primitive::u8; SIZE] =
+			$crate::r#macro::render_wat_unique_lines(VALUES);
 
-			while index < VALUES.len() {
-				if let ::core::option::Option::Some(value) =
-					$crate::r#macro::wat_import_iter(VALUES, index)
-				{
-					size += 1 + value.len();
-				}
-
-				index += 1;
-			}
-
-			size
-		};
-
-		const IMPORTS: [::core::primitive::u8; SIZE] = {
-			let mut imports = [0; SIZE];
-			let mut byte_index = 0;
-			let mut value_index = 0;
-
-			while value_index < VALUES.len() {
-				if let ::core::option::Option::Some(value) =
-					$crate::r#macro::wat_import_iter(VALUES, value_index)
-				{
-					imports[byte_index] = b'\n';
-					byte_index += 1;
-
-					let value = value.as_bytes();
-					let mut index = 0;
-
-					while index < value.len() {
-						imports[byte_index] = value[index];
-						byte_index += 1;
-						index += 1;
-					}
-				}
-
-				value_index += 1;
-			}
-
-			imports
-		};
-
-		if let ::core::result::Result::Ok(value) = ::core::str::from_utf8(&IMPORTS) {
+		if let ::core::result::Result::Ok(value) = ::core::str::from_utf8(&OUTPUT) {
 			value
 		} else {
 			::core::panic!()
@@ -105,12 +173,31 @@ macro_rules! wat_imports {
 		slots = [$($slots:expr),* $(,)?],
 		extras = [$($extra:expr),* $(,)?],
 	) => {
-		$crate::r#macro::wat_import_list!(
+		$crate::r#macro::wat_unique_list!(
 			$(
-				($slots)[0].import,
-				($slots)[1].import,
-				($slots)[2].import,
-				($slots)[3].import,
+				($slots)[0].imports,
+				($slots)[1].imports,
+				($slots)[2].imports,
+				($slots)[3].imports,
+			)*
+			$($extra,)*
+		)
+	};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! wat_locals {
+	(
+		slots = [$($slots:expr),* $(,)?],
+		extras = [$($extra:expr),* $(,)?],
+	) => {
+		$crate::r#macro::wat_unique_list!(
+			$(
+				($slots)[0].locals,
+				($slots)[1].locals,
+				($slots)[2].locals,
+				($slots)[3].locals,
 			)*
 			$($extra,)*
 		)
