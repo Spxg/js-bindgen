@@ -399,9 +399,7 @@ js_bindgen::embed_js!(
 	module = "js_sys",
 	name = "numeric.u128.decode",
 	"(lo, hi) => {{",
-	"	return hi === 0n",
-	"		? BigInt.asUintN(64, lo)",
-	"		: BigInt.asUintN(64, lo) | (BigInt.asUintN(64, hi) << 64n)",
+	"	return BigInt.asUintN(64, lo) | (BigInt.asUintN(64, hi) << 64n)",
 	"}}",
 );
 
@@ -629,9 +627,7 @@ js_bindgen::embed_js!(
 	name = "optional.u128.decode",
 	"(isSome, lo, hi) => {{",
 	"	if (isSome === 0) return undefined",
-	"	return hi === 0n",
-	"		? BigInt.asUintN(64, lo)",
-	"		: BigInt.asUintN(64, lo) | (BigInt.asUintN(64, hi) << 64n)",
+	"	return BigInt.asUintN(64, lo) | (BigInt.asUintN(64, hi) << 64n)",
 	"}}",
 );
 
