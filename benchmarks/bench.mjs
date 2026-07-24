@@ -1,248 +1,489 @@
-import { spawnSync } from "node:child_process";
-import { readFile, rm } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import process from "node:process";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { spawnSync } from "node:child_process"
+import { readFile, rm } from "node:fs/promises"
+import { dirname, join } from "node:path"
+import process from "node:process"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
-import { bench, group, run, summary } from "mitata";
+import { bench, do_not_optimize, run } from "mitata"
 
-const benchmarkDirectory = dirname(fileURLToPath(import.meta.url));
-const repositoryDirectory = join(benchmarkDirectory, "..");
-const targetDirectory = join(benchmarkDirectory, "target");
-const generatedDirectory = join(benchmarkDirectory, "generated");
+const benchmarkPath = fileURLToPath(import.meta.url)
+const benchmarkDirectory = dirname(benchmarkPath)
+const repositoryDirectory = join(benchmarkDirectory, "..")
+const targetDirectory = join(benchmarkDirectory, "target")
+const generatedDirectory = join(benchmarkDirectory, "generated")
+const benchmarkPrefix = "bench_"
+const workerImplementation = process.env.JBG_BENCH_IMPLEMENTATION
+const workerBenchmark = process.env.JBG_BENCHMARK
+
+const filters = process.argv.slice(2).map(filter => filter.toLowerCase())
 
 function execute(command, args, options = {}) {
-  const result = spawnSync(command, args, {
-    cwd: benchmarkDirectory,
-    env: { ...process.env, ...options.env },
-    stdio: "inherit",
-  });
+	const result = spawnSync(command, args, {
+		cwd: benchmarkDirectory,
+		env: { ...process.env, ...options.env },
+		stdio: "inherit",
+	})
 
-  if (result.error) {
-    throw result.error;
-  }
+	if (result.error) {
+		throw result.error
+	}
 
-  if (result.status !== 0) {
-    throw new Error(
-      `${command} ${args.join(" ")} failed with status ${result.status}`,
-    );
-  }
+	if (result.status !== 0) {
+		throw new Error(`${command} ${args.join(" ")} failed with status ${result.status}`)
+	}
+}
+
+function executeForOutput(command, args, options = {}) {
+	const result = spawnSync(command, args, {
+		cwd: benchmarkDirectory,
+		encoding: "utf8",
+		env: { ...process.env, ...options.env },
+		maxBuffer: 16 * 1024 * 1024,
+		stdio: ["ignore", "pipe", "inherit"],
+	})
+
+	if (result.error) {
+		throw result.error
+	}
+
+	if (result.status !== 0) {
+		throw new Error(`${command} ${args.join(" ")} failed with status ${result.status}`)
+	}
+
+	return result.stdout
 }
 
 function cargo(args, options) {
-  execute("cargo", args, options);
+	execute("cargo", args, options)
 }
 
 async function build() {
-  await rm(generatedDirectory, { force: true, recursive: true });
+	await rm(generatedDirectory, { force: true, recursive: true })
 
-  cargo(
-    [
-      "+stable",
-      "build",
-      "--quiet",
-      "--package",
-      "js-bindgen-benchmark",
-      "--release",
-      "--target",
-      "wasm32-unknown-unknown",
-    ],
-    {
-      env: {
-        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER: join(
-          repositoryDirectory,
-          "host/cargo-shim/linker",
-        ),
-      },
-    },
-  );
+	cargo(
+		[
+			"build",
+			"--quiet",
+			"--package",
+			"js-bindgen-benchmark",
+			"--release",
+			"--target",
+			"wasm32-unknown-unknown",
+		],
+		{
+			env: {
+				CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER: join(
+					repositoryDirectory,
+					"host/cargo-shim/linker"
+				),
+			},
+		}
+	)
 
-  const jsBindgenInput = join(
-    targetDirectory,
-    "wasm32-unknown-unknown/release/js_bindgen_benchmark.wasm",
-  );
-  const jsBindgenOutput = join(generatedDirectory, "js-bindgen");
+	const jsBindgenInput = join(
+		targetDirectory,
+		"wasm32-unknown-unknown/release/js_bindgen_benchmark.wasm"
+	)
+	const jsBindgenOutput = join(generatedDirectory, "js-bindgen")
 
-  cargo([
-    "+stable",
-    "run",
-    "--quiet",
-    "--manifest-path",
-    join(repositoryDirectory, "host/Cargo.toml"),
-    "--package",
-    "js-bindgen-cli",
-    "--",
-    jsBindgenInput,
-    "--out-dir",
-    jsBindgenOutput,
-  ]);
+	cargo([
+		"run",
+		"--quiet",
+		"--manifest-path",
+		join(repositoryDirectory, "host/Cargo.toml"),
+		"--package",
+		"js-bindgen-cli",
+		"--",
+		jsBindgenInput,
+		"--out-dir",
+		jsBindgenOutput,
+	])
 
-  cargo([
-    "+stable",
-    "build",
-    "--quiet",
-    "--package",
-    "wasm-bindgen-benchmark",
-    "--release",
-    "--target",
-    "wasm32-unknown-unknown",
-  ]);
+	cargo([
+		"build",
+		"--quiet",
+		"--package",
+		"wasm-bindgen-benchmark",
+		"--release",
+		"--target",
+		"wasm32-unknown-unknown",
+	])
 
-  const wasmBindgenInput = join(
-    targetDirectory,
-    "wasm32-unknown-unknown/release/wasm_bindgen_benchmark.wasm",
-  );
-  const wasmBindgenOutput = join(generatedDirectory, "wasm-bindgen");
+	const wasmBindgenInput = join(
+		targetDirectory,
+		"wasm32-unknown-unknown/release/wasm_bindgen_benchmark.wasm"
+	)
+	const wasmBindgenOutput = join(generatedDirectory, "wasm-bindgen")
 
-  execute("wasm-bindgen", [
-    wasmBindgenInput,
-    "--target",
-    "web",
-    "--out-dir",
-    wasmBindgenOutput,
-    "--no-typescript",
-  ]);
+	execute("wasm-bindgen", [
+		wasmBindgenInput,
+		"--target",
+		"web",
+		"--out-dir",
+		wasmBindgenOutput,
+		"--no-typescript",
+	])
 }
+
+let instanceId = 0
 
 async function loadImplementation(implementation) {
-  const module = await import(pathToFileURL(implementation.modulePath));
-  const bytes = await readFile(implementation.wasmPath);
+	const moduleUrl = pathToFileURL(implementation.modulePath)
+	moduleUrl.searchParams.set("instance", String(instanceId++))
 
-  if (implementation.kind === "js-bindgen") {
-    const wasmModule = await WebAssembly.compile(bytes);
-    const result = await new module.JsBindgen(wasmModule).instantiate();
-    return result.instance.exports;
-  }
+	const module = await import(moduleUrl)
+	const bytes = await readFile(implementation.wasmPath)
 
-  if (implementation.kind === "wasm-bindgen") {
-    return module.initSync({ module: bytes });
-  }
+	if (implementation.kind === "js-bindgen") {
+		const wasmModule = await WebAssembly.compile(bytes)
+		const result = await new module.JsBindgen(wasmModule).instantiate()
+		return result.instance.exports
+	}
 
-  throw new Error(`unknown implementation: ${implementation.kind}`);
+	if (implementation.kind === "wasm-bindgen") {
+		return module.initSync({ module: bytes })
+	}
+
+	throw new Error(`unknown implementation: ${implementation.kind}`)
 }
-
-await build();
-
 const implementations = [
-  {
-    name: "js-bindgen",
-    kind: "js-bindgen",
-    modulePath: join(
-      generatedDirectory,
-      "js-bindgen/js_bindgen_benchmark.mjs",
-    ),
-    wasmPath: join(
-      generatedDirectory,
-      "js-bindgen/js_bindgen_benchmark.wasm",
-    ),
-  },
-  {
-    name: "wasm-bindgen",
-    kind: "wasm-bindgen",
-    modulePath: join(
-      generatedDirectory,
-      "wasm-bindgen/wasm_bindgen_benchmark.js",
-    ),
-    wasmPath: join(
-      generatedDirectory,
-      "wasm-bindgen/wasm_bindgen_benchmark_bg.wasm",
-    ),
-  },
-];
-const loadedImplementations = await Promise.all(
-  implementations.map(async implementation => ({
-    ...implementation,
-    exports: await loadImplementation(implementation),
-  })),
-);
-const cases = [
-  {
-    name: "i32 identity",
-    exportName: "i32_identity",
-    module: new URL("./cases/i32.mjs", import.meta.url),
-  },
-  {
-    name: "u128 identity, small (indirect return)",
-    exportName: "u128_identity",
-    module: new URL("./cases/u128.mjs", import.meta.url),
-    input: [42n, 0n],
-  },
-  {
-    name: "u128 identity, wide (indirect return)",
-    exportName: "u128_identity",
-    module: new URL("./cases/u128.mjs", import.meta.url),
-    input: [0xffffffffffffffffn, 0xffffffffffffffffn],
-  },
-  {
-    name: "Option<i32>::Some (sentinel return)",
-    exportName: "option_i32_identity",
-    module: new URL("./cases/option-i32.mjs", import.meta.url),
-  },
-  {
-    name: "Result<i32, JsValue>::Ok",
-    exportName: "result_i32_identity",
-    module: new URL("./cases/result-i32.mjs", import.meta.url),
-  },
-  {
-    name: "i32 identity (import roundtrip)",
-    exportName: "import_i32_identity",
-    module: new URL("./cases/i32.mjs", import.meta.url),
-  },
-  {
-    name: "u128 identity, small (import roundtrip)",
-    exportName: "import_u128_identity",
-    module: new URL("./cases/u128.mjs", import.meta.url),
-    input: [42n, 0n],
-  },
-  {
-    name: "u128 identity, wide (import roundtrip)",
-    exportName: "import_u128_identity",
-    module: new URL("./cases/u128.mjs", import.meta.url),
-    input: [0xffffffffffffffffn, 0xffffffffffffffffn],
-  },
-  {
-    name: "Option<i32>::Some (import roundtrip)",
-    exportName: "import_option_i32_identity",
-    module: new URL("./cases/option-i32.mjs", import.meta.url),
-  },
-  {
-    name: "Result<i32, JsValue>::Ok (import roundtrip)",
-    exportName: "import_result_i32_identity",
-    module: new URL("./cases/result-i32.mjs", import.meta.url),
-  },
-];
+	{
+		name: "js-bindgen",
+		kind: "js-bindgen",
+		modulePath: join(generatedDirectory, "js-bindgen/js_bindgen_benchmark.mjs"),
+		wasmPath: join(generatedDirectory, "js-bindgen/js_bindgen_benchmark.wasm"),
+	},
+	{
+		name: "wasm-bindgen",
+		kind: "wasm-bindgen",
+		modulePath: join(generatedDirectory, "wasm-bindgen/wasm_bindgen_benchmark.js"),
+		wasmPath: join(generatedDirectory, "wasm-bindgen/wasm_bindgen_benchmark_bg.wasm"),
+	},
+]
 
-for (const testCase of cases) {
-  await group(testCase.name, async () => {
-    await summary(async () => {
-      for (const implementation of loadedImplementations) {
-        const moduleUrl = new URL(testCase.module);
-        moduleUrl.searchParams.set("implementation", implementation.kind);
-        const module = await import(moduleUrl);
-        const call = implementation.exports[testCase.exportName];
+function compareBenchmarks(left, right) {
+	const leftIsImport = left.startsWith(`${benchmarkPrefix}import_`)
+	const rightIsImport = right.startsWith(`${benchmarkPrefix}import_`)
 
-        if (typeof call !== "function") {
-          throw new Error(
-            `missing Wasm export: ${implementation.name}:${testCase.exportName}`,
-          );
-        }
+	if (leftIsImport !== rightIsImport) {
+		return leftIsImport ? 1 : -1
+	}
 
-        const benchmark = module.createBenchmark({
-          call,
-          implementation,
-          input: testCase.input,
-        });
-
-        if (typeof benchmark !== "function") {
-          throw new Error(`invalid benchmark case: ${testCase.module}`);
-        }
-
-        bench(implementation.name, benchmark).baseline(
-          implementation.kind === "js-bindgen",
-        );
-      }
-    });
-  });
+	return left.localeCompare(right)
 }
 
-await run({ throw: true });
+// Wasm functions expose their arity but not their parameter types. Start with
+// Number and retry the parameter that rejected it as BigInt. Parameters that
+// never coerce the probe are reference values.
+function inferArguments(exportName, call) {
+	const kinds = Array(call.length).fill("number")
+
+	while (true) {
+		const coerced = Array(call.length).fill(false)
+		let lastCoerced = -1
+		const probes = kinds.map((kind, index) => ({
+			[Symbol.toPrimitive]() {
+				coerced[index] = true
+				lastCoerced = index
+				return kind === "bigint" ? 42n : 42
+			},
+		}))
+
+		try {
+			call(...probes)
+		} catch (error) {
+			if (lastCoerced < 0 || kinds[lastCoerced] === "bigint") {
+				throw new Error(`cannot infer parameters for ${exportName}`, {
+					cause: error,
+				})
+			}
+
+			kinds[lastCoerced] = "bigint"
+			continue
+		}
+
+		let bigintIndex = 0
+
+		return {
+			inputs: kinds.map((kind, index) => {
+				if (!coerced[index]) {
+					return {}
+				}
+
+				if (kind === "bigint") {
+					return bigintIndex++ === 0 ? 42n : 0n
+				}
+
+				return 42
+			}),
+			kinds: kinds.map((kind, index) => (coerced[index] ? kind : "reference")),
+		}
+	}
+}
+
+async function discoverBenchmarks(implementation) {
+	const module = new WebAssembly.Module(await readFile(implementation.wasmPath))
+	return WebAssembly.Module.exports(module)
+		.filter(item => item.kind === "function" && item.name.startsWith(benchmarkPrefix))
+		.map(item => item.name)
+		.sort(compareBenchmarks)
+}
+
+let benchmarkId = 0
+
+function createBenchmark(call, inputs) {
+	const parameterCount = inputs.length
+	const id = benchmarkId++
+	const parameters = Array.from({ length: parameterCount }, (_, index) => `arg${index}`)
+	const setup = parameters
+		.map(
+			(_, index) => `
+        [${index}]() {
+          return inputs[${index}];
+        },`
+		)
+		.join("")
+
+	// Compile a separate call site for every implementation. Reusing the same
+	// factory shares V8 optimization feedback between otherwise independent
+	// benchmarks and makes the result depend on registration order.
+	return Function(
+		"call",
+		"inputs",
+		"doNotOptimize",
+		`
+      return function* benchmark${id}() {
+        let result;
+
+        yield {${setup}
+          bench(${parameters.join(", ")}) {
+            result = call(${parameters.join(", ")});
+          },
+        };
+
+        doNotOptimize(result);
+      };
+    `
+	)(call, inputs, do_not_optimize)
+}
+
+async function runWorker() {
+	const implementation = implementations.find(({ kind }) => kind === workerImplementation)
+
+	if (!implementation) {
+		throw new Error(`unknown benchmark implementation: ${workerImplementation}`)
+	}
+
+	const exports = await loadImplementation(implementation)
+	const call = exports[workerBenchmark]
+
+	if (typeof call !== "function") {
+		throw new Error(`missing Wasm export: ${implementation.name}:${workerBenchmark}`)
+	}
+
+	const { inputs, kinds } = inferArguments(workerBenchmark, call)
+	bench(implementation.name, createBenchmark(call, inputs))
+
+	const result = await run({ format: "quiet", throw: true })
+	const trial = result.benchmarks[0]
+	const measurement = trial?.runs[0]
+
+	if (!measurement?.stats) {
+		throw new Error(`benchmark failed: ${implementation.name}:${workerBenchmark}`)
+	}
+
+	const { debug: _, samples: __, ...stats } = measurement.stats
+	process.stdout.write(
+		JSON.stringify({
+			context: {
+				arch: result.context.arch,
+				cpu: result.context.cpu,
+				runtime: result.context.runtime,
+				version: result.context.version,
+			},
+			implementation: implementation.name,
+			kinds,
+			stats,
+		})
+	)
+}
+
+function runCase(implementation, exportName) {
+	const output = executeForOutput(process.execPath, [...process.execArgv, benchmarkPath], {
+		env: {
+			JBG_BENCHMARK: exportName,
+			JBG_BENCH_IMPLEMENTATION: implementation.kind,
+		},
+	})
+
+	try {
+		return JSON.parse(output)
+	} catch (error) {
+		throw new Error(`invalid benchmark output from ${implementation.name}:${exportName}`, {
+			cause: error,
+		})
+	}
+}
+
+function formatTime(nanoseconds) {
+	if (nanoseconds < 1) {
+		return `${(nanoseconds * 1000).toFixed(2)} ps`
+	}
+
+	if (nanoseconds < 1000) {
+		return `${nanoseconds.toFixed(2)} ns`
+	}
+
+	if (nanoseconds < 1_000_000) {
+		return `${(nanoseconds / 1000).toFixed(2)} µs`
+	}
+
+	if (nanoseconds < 1_000_000_000) {
+		return `${(nanoseconds / 1_000_000).toFixed(2)} ms`
+	}
+
+	return `${(nanoseconds / 1_000_000_000).toFixed(2)} s`
+}
+
+function printContext(context) {
+	console.log(`clk: ~${context.cpu.freq.toFixed(2)} GHz`)
+	console.log(`cpu: ${context.cpu.name}`)
+	console.log(
+		`runtime: ${context.runtime}${context.version ? ` ${context.version}` : ""} (${context.arch})`
+	)
+}
+
+function printResults(name, results) {
+	console.log("")
+	console.log(`• ${name}`)
+	console.log("-".repeat(96))
+
+	for (const { implementation, stats } of results) {
+		const average = `${formatTime(stats.avg)}/iter`.padStart(15)
+		const range = `(${formatTime(stats.min)} … ${formatTime(stats.max)})`.padStart(25)
+		const percentiles = `${formatTime(stats.p75)} / ${formatTime(stats.p99)}`.padStart(20)
+		console.log(`${implementation.padEnd(18)}${average} ${range} ${percentiles}`)
+	}
+
+	const baseline = results.find(({ implementation }) => implementation === "js-bindgen")
+	const comparisons = []
+	for (const result of results) {
+		if (result === baseline) {
+			continue
+		}
+
+		const baselineIsFaster = baseline.stats.avg <= result.stats.avg
+		const ratio = baselineIsFaster
+			? result.stats.avg / baseline.stats.avg
+			: baseline.stats.avg / result.stats.avg
+		console.log("")
+		console.log("summary")
+		console.log(
+			`  js-bindgen ${ratio.toFixed(2)}x ${
+				baselineIsFaster ? "faster" : "slower"
+			} than ${result.implementation}`
+		)
+
+		comparisons.push({
+			baseline: baseline.stats.avg,
+			implementation: result.implementation,
+			name,
+			other: result.stats.avg,
+			ratio,
+			slower: !baselineIsFaster,
+		})
+	}
+
+	return comparisons
+}
+
+function color(text, code) {
+	if (!process.stdout.isTTY) {
+		return text
+	}
+
+	return `\u001B[${code}m${text}\u001B[0m`
+}
+
+function printComparisons(comparisons) {
+	console.log("")
+	console.log("js-bindgen comparison")
+	console.log("-".repeat(96))
+
+	for (const comparison of comparisons) {
+		const result =
+			`${comparison.name.padEnd(48)} ${comparison.ratio.toFixed(2)}x ` +
+			`${comparison.slower ? "slower" : "faster"}  ` +
+			`(${formatTime(comparison.baseline)} vs ${formatTime(comparison.other)} ` +
+			`${comparison.implementation})`
+		console.log(color(result, comparison.slower ? 31 : 32))
+	}
+}
+
+async function runCoordinator() {
+	await build()
+
+	const discoveredBenchmarks = await Promise.all(implementations.map(discoverBenchmarks))
+	const benchmarks = discoveredBenchmarks[0]
+
+	if (benchmarks.length === 0) {
+		throw new Error(`no ${benchmarkPrefix} exports found`)
+	}
+
+	for (let index = 1; index < discoveredBenchmarks.length; index++) {
+		if (benchmarks.join("\n") !== discoveredBenchmarks[index].join("\n")) {
+			throw new Error(
+				`${implementations[index].name} exports do not match ${implementations[0].name}`
+			)
+		}
+	}
+
+	const selectedBenchmarks = benchmarks.filter(exportName => {
+		if (filters.length === 0) {
+			return true
+		}
+
+		return filters.some(filter => exportName.toLowerCase().includes(filter))
+	})
+
+	if (selectedBenchmarks.length === 0) {
+		throw new Error(`no benchmark matched: ${filters.join(", ")}`)
+	}
+
+	let printedContext = false
+	const comparisons = []
+	for (const exportName of selectedBenchmarks) {
+		let expectedKinds
+		const results = []
+
+		for (const implementation of implementations) {
+			const result = runCase(implementation, exportName)
+
+			if (expectedKinds && expectedKinds.join() !== result.kinds.join()) {
+				throw new Error(
+					`parameter ABI mismatch for ${exportName}: ${expectedKinds.join()} != ${result.kinds.join()}`
+				)
+			}
+
+			expectedKinds = result.kinds
+			results.push(result)
+
+			if (!printedContext) {
+				printContext(result.context)
+				printedContext = true
+			}
+		}
+
+		comparisons.push(...printResults(exportName, results))
+	}
+
+	printComparisons(comparisons)
+}
+
+if (workerImplementation === undefined && workerBenchmark === undefined) {
+	await runCoordinator()
+} else if (workerImplementation !== undefined && workerBenchmark !== undefined) {
+	await runWorker()
+} else {
+	throw new Error("incomplete benchmark worker configuration")
+}
