@@ -12,6 +12,17 @@ const repositoryDirectory = join(benchmarkDirectory, "..")
 const targetDirectory = join(benchmarkDirectory, "target")
 const generatedDirectory = join(benchmarkDirectory, "generated")
 const benchmarkPrefix = "bench_"
+const exceptionHandling = process.env.JBG_BENCH_NO_EH !== "1"
+const rustflagsVariable = "CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS"
+const rustflags = [
+	process.env[rustflagsVariable],
+	exceptionHandling && "-Awarnings -Ctarget-feature=+exception-handling",
+]
+	.filter(Boolean)
+	.join(" ")
+const wasmCargoEnvironment = {
+	[rustflagsVariable]: rustflags,
+}
 const workerImplementation = process.env.JBG_BENCH_IMPLEMENTATION
 const workerBenchmark = process.env.JBG_BENCHMARK
 
@@ -59,9 +70,11 @@ function cargo(args, options) {
 
 async function build() {
 	await rm(generatedDirectory, { force: true, recursive: true })
+	const toolchain = exceptionHandling ? ["+nightly"] : []
 
 	cargo(
 		[
+			...toolchain,
 			"build",
 			"--quiet",
 			"--package",
@@ -70,11 +83,12 @@ async function build() {
 			"--target",
 			"wasm32-unknown-unknown",
 		],
-		{
-			env: {
-				CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER: join(
-					repositoryDirectory,
-					"host/cargo-shim/linker"
+			{
+				env: {
+					...wasmCargoEnvironment,
+					CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_LINKER: join(
+						repositoryDirectory,
+						"host/cargo-shim/linker"
 				),
 			},
 		}
@@ -99,15 +113,19 @@ async function build() {
 		jsBindgenOutput,
 	])
 
-	cargo([
-		"build",
-		"--quiet",
-		"--package",
-		"wasm-bindgen-benchmark",
-		"--release",
-		"--target",
-		"wasm32-unknown-unknown",
-	])
+	cargo(
+		[
+			...toolchain,
+			"build",
+			"--quiet",
+			"--package",
+			"wasm-bindgen-benchmark",
+			"--release",
+			"--target",
+			"wasm32-unknown-unknown",
+		],
+		{ env: wasmCargoEnvironment }
+	)
 
 	const wasmBindgenInput = join(
 		targetDirectory,
@@ -137,11 +155,17 @@ async function loadImplementation(implementation) {
 	if (implementation.kind === "js-bindgen") {
 		const wasmModule = await WebAssembly.compile(bytes)
 		const result = await new module.JsBindgen(wasmModule).instantiate()
-		return result.instance.exports
+		return {
+			raw: result.instance.exports,
+			wrapped: result.exports,
+		}
 	}
 
 	if (implementation.kind === "wasm-bindgen") {
-		return module.initSync({ module: bytes })
+		return {
+			raw: module.initSync({ module: bytes }),
+			wrapped: module,
+		}
 	}
 
 	throw new Error(`unknown implementation: ${implementation.kind}`)
@@ -162,25 +186,20 @@ const implementations = [
 ]
 
 function compareBenchmarks(left, right) {
-	const leftIsImport = left.startsWith(`${benchmarkPrefix}import_`)
-	const rightIsImport = right.startsWith(`${benchmarkPrefix}import_`)
-
-	if (leftIsImport !== rightIsImport) {
-		return leftIsImport ? 1 : -1
-	}
-
 	return left.localeCompare(right)
 }
 
 // Wasm functions expose their arity but not their parameter types. Start with
 // Number and retry the parameter that rejected it as BigInt. Parameters that
 // never coerce the probe are reference values.
-function inferArguments(exportName, call) {
+function inferArguments(exportName, call, allowThrow = false) {
 	const kinds = Array(call.length).fill("number")
 
 	while (true) {
 		const coerced = Array(call.length).fill(false)
 		let lastCoerced = -1
+		let result
+		let throws = false
 		const probes = kinds.map((kind, index) => ({
 			[Symbol.toPrimitive]() {
 				coerced[index] = true
@@ -190,16 +209,24 @@ function inferArguments(exportName, call) {
 		}))
 
 		try {
-			call(...probes)
+			result = call(...probes)
 		} catch (error) {
-			if (lastCoerced < 0 || kinds[lastCoerced] === "bigint") {
+			if (
+				error instanceof TypeError &&
+				lastCoerced >= 0 &&
+				kinds[lastCoerced] !== "bigint"
+			) {
+				kinds[lastCoerced] = "bigint"
+				continue
+			}
+
+			if (!allowThrow) {
 				throw new Error(`cannot infer parameters for ${exportName}`, {
 					cause: error,
 				})
 			}
 
-			kinds[lastCoerced] = "bigint"
-			continue
+			throws = true
 		}
 
 		let bigintIndex = 0
@@ -217,6 +244,8 @@ function inferArguments(exportName, call) {
 				return 42
 			}),
 			kinds: kinds.map((kind, index) => (coerced[index] ? kind : "reference")),
+			result,
+			throws,
 		}
 	}
 }
@@ -231,10 +260,19 @@ async function discoverBenchmarks(implementation) {
 
 let benchmarkId = 0
 
-function createBenchmark(call, inputs) {
+function createBenchmark(call, inputs, throws) {
 	const parameterCount = inputs.length
 	const id = benchmarkId++
 	const parameters = Array.from({ length: parameterCount }, (_, index) => `arg${index}`)
+	const invocation = `call(${parameters.join(", ")})`
+	const measuredCall = throws
+		? `
+            try {
+              result = ${invocation};
+            } catch (error) {
+              result = error;
+            }`
+		: `result = ${invocation};`
 	const setup = parameters
 		.map(
 			(_, index) => `
@@ -257,7 +295,7 @@ function createBenchmark(call, inputs) {
 
         yield {${setup}
           bench(${parameters.join(", ")}) {
-            result = call(${parameters.join(", ")});
+            ${measuredCall}
           },
         };
 
@@ -274,15 +312,35 @@ async function runWorker() {
 		throw new Error(`unknown benchmark implementation: ${workerImplementation}`)
 	}
 
-	const exports = await loadImplementation(implementation)
-	const call = exports[workerBenchmark]
+	const rawExports = await loadImplementation(implementation)
+	const rawCall = rawExports.raw[workerBenchmark]
 
-	if (typeof call !== "function") {
+	if (typeof rawCall !== "function") {
 		throw new Error(`missing Wasm export: ${implementation.name}:${workerBenchmark}`)
 	}
 
-	const { inputs, kinds } = inferArguments(workerBenchmark, call)
-	bench(implementation.name, createBenchmark(call, inputs))
+	const raw = inferArguments(workerBenchmark, rawCall)
+
+	// Probe wrappers on a separate instance. Some raw ABIs transfer owned table
+	// indices, so probing them must not perturb the instance being measured.
+	const wrappedExports = await loadImplementation(implementation)
+	const wrappedCall = wrappedExports.wrapped[workerBenchmark]
+
+	if (typeof wrappedCall !== "function") {
+		throw new Error(`missing JS export: ${implementation.name}:${workerBenchmark}`)
+	}
+
+	const wrapped = inferArguments(workerBenchmark, wrappedCall, true)
+	const returnsReference =
+		(typeof wrapped.result === "object" && wrapped.result !== null) ||
+		typeof wrapped.result === "function"
+	const useWrapper =
+		wrapped.throws ||
+		wrapped.kinds.includes("reference") ||
+		(Array.isArray(raw.result) && returnsReference)
+	const call = useWrapper ? wrappedCall : rawCall
+	const { inputs, kinds, throws } = useWrapper ? wrapped : raw
+	bench(implementation.name, createBenchmark(call, inputs, throws))
 
 	const result = await run({ format: "quiet", throw: true })
 	const trial = result.benchmarks[0]
@@ -295,15 +353,17 @@ async function runWorker() {
 	const { debug: _, samples: __, ...stats } = measurement.stats
 	process.stdout.write(
 		JSON.stringify({
-			context: {
-				arch: result.context.arch,
-				cpu: result.context.cpu,
-				runtime: result.context.runtime,
-				version: result.context.version,
+				context: {
+					arch: result.context.arch,
+					cpu: result.context.cpu,
+					exceptionHandling,
+					runtime: result.context.runtime,
+					version: result.context.version,
 			},
 			implementation: implementation.name,
 			kinds,
 			stats,
+			throws,
 		})
 	)
 }
@@ -351,6 +411,7 @@ function printContext(context) {
 	console.log(
 		`runtime: ${context.runtime}${context.version ? ` ${context.version}` : ""} (${context.arch})`
 	)
+	console.log(`exception-handling: ${context.exceptionHandling ? "enabled" : "disabled"}`)
 }
 
 function printResults(name, results) {
@@ -454,6 +515,7 @@ async function runCoordinator() {
 	const comparisons = []
 	for (const exportName of selectedBenchmarks) {
 		let expectedKinds
+		let expectedThrows
 		const results = []
 
 		for (const implementation of implementations) {
@@ -465,7 +527,14 @@ async function runCoordinator() {
 				)
 			}
 
+			if (expectedThrows !== undefined && expectedThrows !== result.throws) {
+				throw new Error(
+					`exception behavior mismatch for ${exportName}: ${expectedThrows} != ${result.throws}`
+				)
+			}
+
 			expectedKinds = result.kinds
+			expectedThrows = result.throws
 			results.push(result)
 
 			if (!printedContext) {
