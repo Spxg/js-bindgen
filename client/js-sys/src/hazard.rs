@@ -2,6 +2,7 @@ use core::mem::{ManuallyDrop, MaybeUninit};
 use core::ptr;
 
 use crate::JsValue;
+use crate::externref::{WAT_INDEX_LOCAL, WAT_TAKE_IMPORTS};
 
 /// One carrier position in the Wasm function `ABI`.
 ///
@@ -403,46 +404,113 @@ where
 
 /// The return `ABI` for exporting [`Result`] to JavaScript.
 ///
-/// The first two slots carry the error and its presence tag. The remaining two
-/// slots carry the successful value.
+/// The first two slots carry the successful value. The remaining two carry the
+/// error discriminant and table index.
 #[doc(hidden)]
 pub struct ResultIntoJsAbi<T: WasmAbi> {
 	value: Result<T, <JsValue as IntoJS>::Abi>,
 }
 
-// SAFETY: The first slot transfers an error `externref`, the second is the
-// error tag, and the remaining slots match the successful value's `ABI`.
+const RESULT_DISCRIMINANT_LOCAL: &str = "  (local $js_sys.result.discriminant i32)";
+const RESULT_ERROR_WAT_CONV: &str = "\
+  local.set $js_sys.externref.index
+  local.get $js_sys.result.discriminant
+  if (result externref)
+    local.get $js_sys.externref.index
+    table.get $js_sys.import.externref.table (@reloc)
+    local.get $js_sys.externref.index
+    i32.const 2
+    i32.ge_u
+    if
+      local.get $js_sys.externref.index
+      call $js_sys.externref.release (@reloc)
+    end
+  else
+    ref.null extern
+  end";
+
+/// The discriminant of an exported [`Result`].
+#[doc(hidden)]
+#[repr(transparent)]
+pub struct ResultDiscriminantAbi(u32);
+
+// SAFETY: The transparent `i32` discriminant is also recorded in a local for
+// the following error slot conversion.
+unsafe impl Slot for ResultDiscriminantAbi {
+	const WAT_TYPE: &'static str = "i32";
+	const INTO_JS_WAT_CONV: Option<WatConv> = Some(WatConv {
+		imports: None,
+		locals: Some(RESULT_DISCRIMINANT_LOCAL),
+		conv: "local.tee $js_sys.result.discriminant",
+		r#type: "i32",
+	});
+}
+
+/// An owned `externref` table index transferred by a [`Result`] error.
+///
+/// The preceding [`ResultDiscriminantAbi`] controls whether the index is taken
+/// from the table. Successful results produce a null placeholder without
+/// accessing the table.
+#[doc(hidden)]
+#[repr(transparent)]
+pub struct ResultErrorAbi(<JsValue as IntoJS>::Abi);
+
+// SAFETY: `JsValue` uses a transparent `i32` table index as its Rust ABI. The
+// preceding result discriminant is recorded before this conversion runs.
+unsafe impl Slot for ResultErrorAbi {
+	const WAT_TYPE: &'static str = "i32";
+	const INTO_JS_WAT_CONV: Option<WatConv> = Some(WatConv {
+		imports: Some(WAT_TAKE_IMPORTS),
+		locals: Some(WAT_INDEX_LOCAL),
+		conv: RESULT_ERROR_WAT_CONV,
+		r#type: "externref",
+	});
+}
+
+// SAFETY: The first two slots match the successful value's `ABI`. The third
+// is the error discriminant and the fourth transfers an owned error table
+// index.
 unsafe impl<T> WasmAbi for ResultIntoJsAbi<T>
 where
 	T: WasmAbi<Slot3 = EmptySlot, Slot4 = EmptySlot>,
 	T::Slot1: Default,
 	T::Slot2: Default,
 {
-	type Slot1 = <JsValue as IntoJS>::Abi;
-	type Slot2 = u32;
-	type Slot3 = T::Slot1;
-	type Slot4 = T::Slot2;
+	type Slot1 = T::Slot1;
+	type Slot2 = T::Slot2;
+	type Slot3 = ResultDiscriminantAbi;
+	type Slot4 = ResultErrorAbi;
 
 	fn split(self) -> (Self::Slot1, Self::Slot2, Self::Slot3, Self::Slot4) {
 		match self.value {
 			Ok(value) => {
 				let (slot1, slot2, _, _) = value.split();
-				(JsValue::UNDEFINED.into_abi(), 0, slot1, slot2)
+				(
+					slot1,
+					slot2,
+					ResultDiscriminantAbi(0),
+					ResultErrorAbi(JsValue::UNDEFINED.into_abi()),
+				)
 			}
-			Err(error) => (error, 1, Default::default(), Default::default()),
+			Err(error) => (
+				Default::default(),
+				Default::default(),
+				ResultDiscriminantAbi(1),
+				ResultErrorAbi(error),
+			),
 		}
 	}
 
 	fn join(
-		error: Self::Slot1,
-		is_error: Self::Slot2,
-		slot1: Self::Slot3,
-		slot2: Self::Slot4,
+		slot1: Self::Slot1,
+		slot2: Self::Slot2,
+		is_error: Self::Slot3,
+		error: Self::Slot4,
 	) -> Self {
-		let value = if is_error == 0 {
+		let value = if is_error.0 == 0 {
 			Ok(T::join(slot1, slot2, EmptySlot::new(), EmptySlot::new()))
 		} else {
-			Err(error)
+			Err(error.0)
 		};
 
 		Self { value }

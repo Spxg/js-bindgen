@@ -275,7 +275,7 @@ pub const fn return_from_js_is_result<T: ReturnFromJS>() -> bool {
 pub const fn validate_return_into_js<T: ReturnIntoJS>() {
 	let conv = T::JS_CONV.conversion();
 	let multislot = if T::JS_CONV.is_result() {
-		!<ReturnSlot4<T> as Slot>::WAT_TYPE.is_empty()
+		!<ReturnSlot2<T> as Slot>::WAT_TYPE.is_empty()
 	} else {
 		!<ReturnSlot2<T> as Slot>::WAT_TYPE.is_empty()
 			|| !<ReturnSlot3<T> as Slot>::WAT_TYPE.is_empty()
