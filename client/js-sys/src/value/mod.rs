@@ -47,14 +47,14 @@ impl Default for JsValueAbi {
 unsafe impl Slot for JsValueAbi {
 	const WAT_TYPE: &'static str = "i32";
 	const INTO_JS_WAT_CONV: Option<WatConv> = Some(WatConv {
-		imports: WAT_TAKE_IMPORTS,
-		locals: WAT_INDEX_LOCAL,
+		imports: Some(WAT_TAKE_IMPORTS),
+		locals: Some(WAT_INDEX_LOCAL),
 		conv: WAT_TAKE_CONV,
 		r#type: "externref",
 	});
 	const FROM_JS_WAT_CONV: Option<WatConv> = Some(WatConv {
-		imports: WAT_INSERT_IMPORTS,
-		locals: WAT_INSERT_LOCALS,
+		imports: Some(WAT_INSERT_IMPORTS),
+		locals: Some(WAT_INSERT_LOCALS),
 		conv: WAT_INSERT_CONV,
 		r#type: "externref",
 	});
@@ -70,8 +70,8 @@ unsafe impl ReturnAbi for JsValueAbi {
 unsafe impl Slot for JsValueRefAbi {
 	const WAT_TYPE: &'static str = "i32";
 	const INTO_JS_WAT_CONV: Option<WatConv> = Some(WatConv {
-		imports: WAT_TABLE_IMPORT,
-		locals: "",
+		imports: Some(WAT_TABLE_IMPORT),
+		locals: None,
 		conv: WAT_GET_CONV,
 		r#type: "externref",
 	});
@@ -83,14 +83,14 @@ unsafe impl Slot for JsValueRefAbi {
 unsafe impl Slot for OptionalJsValueAbi {
 	const WAT_TYPE: &'static str = "i32";
 	const INTO_JS_WAT_CONV: Option<WatConv> = Some(WatConv {
-		imports: WAT_TAKE_IMPORTS,
-		locals: WAT_INDEX_LOCAL,
+		imports: Some(WAT_TAKE_IMPORTS),
+		locals: Some(WAT_INDEX_LOCAL),
 		conv: WAT_TAKE_CONV,
 		r#type: "externref",
 	});
 	const FROM_JS_WAT_CONV: Option<WatConv> = Some(WatConv {
-		imports: WAT_INSERT_IMPORTS,
-		locals: WAT_INSERT_LOCALS,
+		imports: Some(WAT_INSERT_IMPORTS),
+		locals: Some(WAT_INSERT_LOCALS),
 		conv: WAT_OPTIONAL_INSERT_CONV,
 		r#type: "externref",
 	});

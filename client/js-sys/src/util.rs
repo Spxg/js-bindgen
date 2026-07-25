@@ -90,8 +90,8 @@ const PTR_INTO_JS_WAT_CONV: Option<WatConv> = None;
 
 #[cfg(target_arch = "wasm64")]
 const PTR_INTO_JS_WAT_CONV: Option<WatConv> = Some(WatConv {
-	imports: "",
-	locals: "",
+	imports: None,
+	locals: None,
 	conv: "f64.convert_i64_u",
 	r#type: "f64",
 });

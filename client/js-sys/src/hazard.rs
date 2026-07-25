@@ -186,8 +186,8 @@ where
 
 #[derive(Clone, Copy)]
 pub struct WatConv {
-	pub imports: &'static str,
-	pub locals: &'static str,
+	pub imports: Option<&'static str>,
+	pub locals: Option<&'static str>,
 	pub conv: &'static str,
 	pub r#type: &'static str,
 }

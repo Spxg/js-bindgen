@@ -136,7 +136,18 @@ const fn wat_slot<S: Slot>(wat_conv: Option<WatConv>) -> WatSlot {
 			locals,
 			conv,
 			r#type,
-		}) => (r#type, imports, locals, conv),
+		}) => (
+			r#type,
+			match imports {
+				Some(imports) => imports,
+				None => "",
+			},
+			match locals {
+				Some(locals) => locals,
+				None => "",
+			},
+			conv,
+		),
 		None => (S::WAT_TYPE, "", "", ""),
 	};
 
