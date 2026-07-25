@@ -210,7 +210,7 @@ from_js!(bool, u32, u64, usize);
 // SAFETY: The JavaScript conversion normalizes the `i32` Wasm slot to a
 // `boolean`.
 unsafe impl IntoJS for bool {
-	const JS_CONV: Option<IntoJsConv> = Some(IntoJsConv::new("!!$slot1"));
+	const JS_CONV: Option<IntoJsConv> = Some(IntoJsConv::new("$slot1 !== 0"));
 
 	type Abi = Self;
 
