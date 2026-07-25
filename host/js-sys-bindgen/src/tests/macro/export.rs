@@ -39,7 +39,7 @@ fn direct() {
 	assert_eq!(
 		js,
 		r"(arg0) => {
-    const ret = instance.exports['echo'](arg0)
+    const ret = wasmExports['echo'](arg0)
     return ret >>> 0
 }"
 	);
@@ -76,7 +76,7 @@ fn wat_slot_conversions() {
 	assert_eq!(
 		js,
 		r"(arg0) => {
-    instance.exports['drop_value'](arg0)
+    wasmExports['drop_value'](arg0)
 }"
 	);
 
@@ -110,7 +110,7 @@ fn wat_slot_conversions() {
 	assert_eq!(
 		js,
 		r"() => {
-    const ret = instance.exports['undefined']()
+    const ret = wasmExports['undefined']()
     return ret
 }"
 	);
@@ -154,7 +154,7 @@ fn indirect_and_multiple_parameters() {
 	assert_eq!(
 		js,
 		r"(arg0, arg1) => {
-    const ret = instance.exports['add'](arg0, arg1, arg1 >> 64n)
+    const ret = wasmExports['add'](arg0, arg1, arg1 >> 64n)
     return this.#jsEmbed.js_sys['numeric.u128.decode'](ret[0], ret[1])
 }"
 	);
@@ -226,7 +226,7 @@ fn result() {
 	assert_eq!(
 		js,
 		r"(arg0, arg1) => {
-    const ret = instance.exports['checked_add'](arg0, arg0 >> 64n, arg1, arg1 >> 64n)
+    const ret = wasmExports['checked_add'](arg0, arg0 >> 64n, arg1, arg1 >> 64n)
     if (ret[2] !== 0) throw ret[3]
     return this.#jsEmbed.js_sys['numeric.u128.decode'](ret[0], ret[1])
 }"
@@ -295,7 +295,7 @@ fn single_slot_result() {
 	assert_eq!(
 		js,
 		r"(arg0, arg1) => {
-    const ret = instance.exports['checked_add'](arg0, arg1)
+    const ret = wasmExports['checked_add'](arg0, arg1)
     if (ret[1] !== 0) throw ret[2]
     return ret[0]
 }"
@@ -314,7 +314,7 @@ fn no_parameters() {
 	assert_eq!(
 		js,
 		r"() => {
-    const ret = instance.exports['answer']()
+    const ret = wasmExports['answer']()
     return ret >>> 0
 }"
 	);
@@ -332,7 +332,7 @@ fn no_return_value() {
 	assert_eq!(
 		js,
 		r"(arg0) => {
-    instance.exports['nothing'](arg0)
+    wasmExports['nothing'](arg0)
 }"
 	);
 }

@@ -307,7 +307,7 @@ macro_rules! js_export {
 		$crate::r#macro::const_concat!(
 			"(",
 			PARAMETERS,
-			") => {\n    instance.exports['",
+			") => {\n    wasmExports['",
 			$export,
 			"'](",
 			ARGUMENTS,
@@ -346,7 +346,7 @@ macro_rules! js_export {
 		$crate::r#macro::const_concat!(
 			"(",
 			PARAMETERS,
-			") => {\n    const ret = instance.exports['",
+			") => {\n    const ret = wasmExports['",
 			$export,
 			"'](",
 			ARGUMENTS,
