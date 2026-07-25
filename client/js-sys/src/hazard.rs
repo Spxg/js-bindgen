@@ -455,7 +455,7 @@ unsafe impl Slot for ResultDiscriminantAbi {
 #[repr(transparent)]
 pub struct ResultErrorAbi(<JsValue as IntoJS>::Abi);
 
-// SAFETY: `JsValue` uses a transparent `i32` table index as its Rust ABI. The
+// SAFETY: `JsValue` uses a transparent `i32` table index as its Rust `ABI`. The
 // preceding result discriminant is recorded before this conversion runs.
 unsafe impl Slot for ResultErrorAbi {
 	const WAT_TYPE: &'static str = "i32";

@@ -107,8 +107,8 @@ impl Slab {
 		}
 	}
 
-	// `js-sys` is linked as a separate crate. Without forced inlining, each
-	// externref conversion retains an extra Wasm function call.
+	// `js-sys` is linked as a separate crate. Without forced `inlining`, each
+	// `externref` conversion retains an extra Wasm function call.
 	#[expect(
 		clippy::inline_always,
 		reason = "avoids a call in every externref conversion"
