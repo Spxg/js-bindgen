@@ -47,7 +47,7 @@ pub fn join_from_js<T: FromJS>(
 #[must_use]
 #[inline]
 pub fn return_to_js<T: ReturnIntoJS>(value: T) -> WasmRet<T::Abi> {
-	WasmRet::from_abi(T::return_into_abi(value))
+	WasmRet::from_abi(T::into_return_abi(value))
 }
 
 /// Lowers a value through a different [`IntoJS`] implementation with the same
@@ -69,7 +69,7 @@ pub unsafe fn split_input_as<T: IntoJS>(
 #[must_use]
 #[inline]
 pub fn join_output<T: ReturnFromJS>(value: OutputRet<T>) -> T {
-	T::return_from_abi(value)
+	T::from_return_abi(value)
 }
 
 // Compile-time validation of conversion metadata.
