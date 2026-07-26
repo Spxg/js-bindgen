@@ -4,7 +4,7 @@
 
 use core::marker::PhantomData;
 use crate::{js_bindgen, r#macro, JsValue};
-use crate::hazard::{IntoJS, JsCast, OptionIntoJS};
+use crate::hazard::{IntoJS, JsCast};
 use crate::util::{PtrConst, PtrLength, PtrMut};
 
 #[repr(transparent)]
@@ -32,14 +32,6 @@ unsafe impl<T> IntoJS for JsArray<T> {
 
 	fn into_abi(self) -> Self::Abi {
 		IntoJS::into_abi(JsValue::from(self))
-	}
-}
-
-unsafe impl<T> OptionIntoJS for JsArray<T> {
-	type OptionAbi = <JsValue as OptionIntoJS>::OptionAbi;
-
-	fn option_into_abi(value: ::core::option::Option<Self>) -> Self::OptionAbi {
-		OptionIntoJS::option_into_abi(value.map(JsValue::from))
 	}
 }
 

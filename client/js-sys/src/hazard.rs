@@ -207,6 +207,38 @@ pub unsafe trait IntoJS {
 	fn into_abi(self) -> Self::Abi;
 }
 
+/// Describes how a value using this `ABI` carrier is encoded as an [`Option`].
+///
+/// This is implemented on the carrier rather than the Rust value so types that
+/// share a carrier can also share their optional representation.
+///
+/// # Safety
+///
+/// `Abi`, `into_option_abi`, and `JS_CONV` must describe one consistent
+/// conversion from `Option<T>` to a JavaScript value.
+#[doc(hidden)]
+pub unsafe trait OptionIntoAbi<T: IntoJS>: WasmAbi {
+	const JS_CONV: Option<IntoJsConv> = T::JS_CONV;
+
+	type Abi: WasmAbi;
+
+	fn into_option_abi(value: Option<T>) -> Self::Abi;
+}
+
+// SAFETY: Delegated to the optional representation of `T`'s ABI carrier.
+unsafe impl<T: IntoJS> IntoJS for Option<T>
+where
+	T::Abi: OptionIntoAbi<T>,
+{
+	const JS_CONV: Option<IntoJsConv> = <T::Abi as OptionIntoAbi<T>>::JS_CONV;
+
+	type Abi = <T::Abi as OptionIntoAbi<T>>::Abi;
+
+	fn into_abi(self) -> Self::Abi {
+		<T::Abi as OptionIntoAbi<T>>::into_option_abi(self)
+	}
+}
+
 /// Converts a Rust function result into its JavaScript return representation.
 ///
 /// Ordinary values delegate to [`IntoJS`]. Types such as [`Result`] may also
@@ -230,31 +262,6 @@ where
 
 	fn return_into_abi(self) -> Self::Abi {
 		self.into_abi()
-	}
-}
-
-/// Extends [`IntoJS`] with the representation of `Option<Self>`.
-///
-/// # Safety
-///
-/// `OptionAbi`, `option_into_abi`, and `OPTION_JS_CONV` must describe one
-/// consistent conversion from `Option<Self>` to a JavaScript value.
-pub unsafe trait OptionIntoJS: IntoJS + Sized {
-	const OPTION_JS_CONV: Option<IntoJsConv> = Self::JS_CONV;
-
-	type OptionAbi: WasmAbi;
-
-	fn option_into_abi(value: Option<Self>) -> Self::OptionAbi;
-}
-
-// SAFETY: Delegated to the `OptionIntoJS` implementation.
-unsafe impl<T: OptionIntoJS> IntoJS for Option<T> {
-	const JS_CONV: Option<IntoJsConv> = T::OPTION_JS_CONV;
-
-	type Abi = T::OptionAbi;
-
-	fn into_abi(self) -> Self::Abi {
-		T::option_into_abi(self)
 	}
 }
 
@@ -372,6 +379,38 @@ pub unsafe trait FromJS {
 	type Abi: ReturnAbi;
 
 	fn from_abi(raw: Self::Abi) -> Self;
+}
+
+/// Describes how an [`Option`] is decoded for a value using this `ABI` carrier.
+///
+/// This is implemented on the carrier rather than the Rust value so types that
+/// share a carrier can also share their optional representation.
+///
+/// # Safety
+///
+/// `Abi`, `from_option_abi`, and `JS_CONV` must describe one consistent
+/// conversion from a JavaScript value to `Option<T>`.
+#[doc(hidden)]
+pub unsafe trait OptionFromAbi<T: FromJS>: ReturnAbi {
+	const JS_CONV: Option<FromJsConv> = T::JS_CONV;
+
+	type Abi: ReturnAbi;
+
+	fn from_option_abi(raw: Self::Abi) -> Option<T>;
+}
+
+// SAFETY: Delegated to the optional representation of `T`'s ABI carrier.
+unsafe impl<T: FromJS> FromJS for Option<T>
+where
+	T::Abi: OptionFromAbi<T>,
+{
+	const JS_CONV: Option<FromJsConv> = <T::Abi as OptionFromAbi<T>>::JS_CONV;
+
+	type Abi = <T::Abi as OptionFromAbi<T>>::Abi;
+
+	fn from_abi(raw: Self::Abi) -> Self {
+		<T::Abi as OptionFromAbi<T>>::from_option_abi(raw)
+	}
 }
 
 /// Converts the return value of a JavaScript import into its Rust result.

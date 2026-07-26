@@ -11,7 +11,8 @@ use crate::externref::{
 	WAT_OPTIONAL_INSERT_CONV, WAT_TABLE_IMPORT, WAT_TAKE_CONV, WAT_TAKE_IMPORTS, release,
 };
 use crate::hazard::{
-	FromJS, FromJsConv, IntoJS, JsCast, OptionIntoJS, ReturnAbi, ReturnMode, Slot, WatConv,
+	FromJS, FromJsConv, IntoJS, IntoJsConv, JsCast, OptionFromAbi, OptionIntoAbi, ReturnAbi,
+	ReturnMode, Slot, WatConv,
 };
 
 #[derive(Debug)]
@@ -214,43 +215,56 @@ unsafe impl<T: JsCast> FromJS for T {
 	}
 }
 
-// SAFETY: `None` uses the reserved undefined index, which no borrowed
-// `JsValue` can produce.
-unsafe impl<T: JsCast> OptionIntoJS for &T {
-	type OptionAbi = JsValueRefAbi;
+// SAFETY: `None` uses the reserved undefined index, while `Some` preserves the
+// borrowed table index produced by the underlying conversion.
+unsafe impl<T> OptionIntoAbi<T> for JsValueRefAbi
+where
+	T: IntoJS<Abi = Self>,
+{
+	const JS_CONV: Option<IntoJsConv> = T::JS_CONV;
 
-	fn option_into_abi(value: Option<Self>) -> Self::OptionAbi {
-		value.map_or(JsValueRefAbi(JsValue::UNDEFINED.index), |value| {
-			IntoJS::into_abi(value.unchecked_as_ref())
+	type Abi = Self;
+
+	fn into_option_abi(value: Option<T>) -> Self::Abi {
+		value.map_or(Self(JsValue::UNDEFINED.index), |value| {
+			IntoJS::into_abi(value)
 		})
 	}
 }
 
-// SAFETY: `None` becomes index zero. A present value transfers its owned table
-// index to JavaScript.
-unsafe impl OptionIntoJS for JsValue {
-	type OptionAbi = OptionalJsValueAbi;
+// SAFETY: `None` becomes the reserved undefined index. A present value
+// transfers the owned table index produced by the underlying conversion.
+unsafe impl<T> OptionIntoAbi<T> for JsValueAbi
+where
+	T: IntoJS<Abi = Self>,
+{
+	const JS_CONV: Option<IntoJsConv> = T::JS_CONV;
 
-	fn option_into_abi(value: Option<Self>) -> Self::OptionAbi {
+	type Abi = OptionalJsValueAbi;
+
+	fn into_option_abi(value: Option<T>) -> Self::Abi {
 		match value {
-			None => OptionalJsValueAbi(Self::UNDEFINED.index),
+			None => OptionalJsValueAbi(JsValue::UNDEFINED.index),
 			Some(value) => {
-				let JsValueAbi(index) = IntoJS::into_abi(value);
+				let Self(index) = IntoJS::into_abi(value);
 				OptionalJsValueAbi(index)
 			}
 		}
 	}
 }
 
-// SAFETY: Null or undefined JS values become index zero; all other `externref`
-// values are inserted into the `externref` table and reconstructed as `T`.
-unsafe impl<T: JsCast> FromJS for Option<T> {
+// SAFETY: Null or undefined JS values use the reserved undefined index; all
+// other values are decoded by the underlying owned table-index conversion.
+unsafe impl<T> OptionFromAbi<T> for JsValueAbi
+where
+	T: FromJS<Abi = Self>,
+{
 	const JS_CONV: Option<FromJsConv> = Some(FromJsConv::slot1("($value) ?? null"));
 
 	type Abi = OptionalJsValueAbi;
 
-	fn from_abi(raw: Self::Abi) -> Self {
-		(raw.0 != JsValue::UNDEFINED.index).then(|| T::unchecked_from(JsValue::new(raw.0)))
+	fn from_option_abi(raw: Self::Abi) -> Option<T> {
+		(raw.0 != JsValue::UNDEFINED.index).then(|| T::from_abi(Self(raw.0)))
 	}
 }
 

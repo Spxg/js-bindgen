@@ -1,6 +1,6 @@
 use crate::hazard::{
-	EmptySlot, FromJS, FromJsConv, IntoJS, IntoJsConv, OptionIntoJS, ReturnAbi, ReturnMode, Slot,
-	WasmAbi,
+	EmptySlot, FromJS, FromJsConv, IntoJS, IntoJsConv, OptionFromAbi, OptionIntoAbi, ReturnAbi,
+	ReturnMode, Slot, WasmAbi,
 };
 use crate::r#macro::const_concat;
 
@@ -58,17 +58,17 @@ macro_rules! sentinel_option {
 		}),+ $(,)?],
 	) => {$($(
 		// SAFETY: The sentinel lies outside the value range of this type.
-		unsafe impl OptionIntoJS for $ty {
-			const OPTION_JS_CONV: Option<IntoJsConv> = Some(IntoJsConv::new(const_concat!(
+		unsafe impl OptionIntoAbi<$ty> for $ty {
+			const JS_CONV: Option<IntoJsConv> = Some(IntoJsConv::new(const_concat!(
 				"$slot1 === ",
 				$js_sentinel,
 				" ? undefined : ",
 				$to_js
 			)));
 
-			type OptionAbi = $carrier;
+			type Abi = $carrier;
 
-			fn option_into_abi(value: Option<Self>) -> Self::OptionAbi {
+			fn into_option_abi(value: Option<$ty>) -> Self::Abi {
 				value.map_or($sentinel, |value| {
 					sentinel_option!(@into_abi value, $ty, $carrier)
 				})
@@ -76,7 +76,7 @@ macro_rules! sentinel_option {
 		}
 
 		// SAFETY: The sentinel is decoded before the carrier is converted back.
-		unsafe impl FromJS for Option<$ty> {
+		unsafe impl OptionFromAbi<$ty> for $ty {
 			const JS_CONV: Option<FromJsConv> = Some(FromJsConv::slot1(const_concat!(
 				"$value == null ? ",
 				$js_sentinel,
@@ -95,7 +95,7 @@ macro_rules! sentinel_option {
 				clippy::cast_sign_loss,
 				reason = "JavaScript normalizes the carrier to this type's value range"
 			)]
-			fn from_abi(raw: Self::Abi) -> Self {
+			fn from_option_abi(raw: Self::Abi) -> Option<$ty> {
 				if raw == $sentinel {
 					None
 				} else {
@@ -152,31 +152,31 @@ macro_rules! indirect_option {
 
 		// SAFETY: The decoder combines the presence tag and payload slots into one
 		// optional JavaScript value.
-		unsafe impl OptionIntoJS for $ty {
-			const OPTION_JS_CONV: Option<IntoJsConv> = Some(
+		unsafe impl OptionIntoAbi<$ty> for $ty {
+			const JS_CONV: Option<IntoJsConv> = Some(
 				IntoJsConv::new(indirect_option!(@decode $decode, [$($slot),+]))
 					.with_embed(("js_sys", $decode)),
 			);
 
-			type OptionAbi = Option<Self>;
+			type Abi = Option<$ty>;
 
-			fn option_into_abi(value: Option<Self>) -> Self::OptionAbi {
+			fn into_option_abi(value: Option<$ty>) -> Self::Abi {
 				value
 			}
 		}
 
 		// SAFETY: The encoder writes a JavaScript value as a presence tag and the
 		// payload slots expected by `Option<$ty>`.
-		unsafe impl FromJS for Option<$ty> {
+		unsafe impl OptionFromAbi<$ty> for $ty {
 			const JS_CONV: Option<FromJsConv> = Some(
 				indirect_option!(@output [$($slot),+])
 					.sret(const_concat!("this.#jsEmbed.js_sys['", $encode, "']"))
 					.with_embed(("js_sys", $encode)),
 			);
 
-			type Abi = Self;
+			type Abi = Option<$ty>;
 
-			fn from_abi(raw: Self::Abi) -> Self {
+			fn from_option_abi(raw: Self::Abi) -> Option<$ty> {
 				raw
 			}
 		}

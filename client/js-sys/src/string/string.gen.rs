@@ -3,7 +3,7 @@
 #![allow(warnings)]
 
 use crate::{js_bindgen, r#macro, JsValue};
-use crate::hazard::{IntoJS, JsCast, OptionIntoJS};
+use crate::hazard::{IntoJS, JsCast};
 use crate::util::{PtrConst, PtrLength, PtrMut};
 
 #[derive(Clone, Debug)]
@@ -29,14 +29,6 @@ unsafe impl IntoJS for JsString {
 
 	fn into_abi(self) -> Self::Abi {
 		IntoJS::into_abi(JsValue::from(self))
-	}
-}
-
-unsafe impl OptionIntoJS for JsString {
-	type OptionAbi = <JsValue as OptionIntoJS>::OptionAbi;
-
-	fn option_into_abi(value: ::core::option::Option<Self>) -> Self::OptionAbi {
-		OptionIntoJS::option_into_abi(value.map(JsValue::from))
 	}
 }
 
