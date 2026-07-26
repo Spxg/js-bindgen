@@ -24,7 +24,7 @@ pub use crate::{
 	js_parameter,
 };
 // WAT export shims.
-pub use crate::{wat_export, wat_export_direct, wat_export_indirect, wat_export_needs_shim};
+pub use crate::{wat_export, wat_export_direct, wat_export_indirect};
 // WAT import shims.
 pub use crate::{wat_import, wat_import_output};
 // Shared WAT helpers.

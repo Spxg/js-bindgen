@@ -333,23 +333,6 @@ pub const fn return_into_js_is_direct<T: ReturnIntoJS>() -> bool {
 }
 
 #[must_use]
-pub const fn export_input_needs_wat_shim<T: FromJS>() -> bool {
-	<FromJsSlot1<T> as Slot>::FROM_JS_WAT_CONV.is_some()
-		|| <FromJsSlot2<T> as Slot>::FROM_JS_WAT_CONV.is_some()
-		|| <FromJsSlot3<T> as Slot>::FROM_JS_WAT_CONV.is_some()
-		|| <FromJsSlot4<T> as Slot>::FROM_JS_WAT_CONV.is_some()
-}
-
-#[must_use]
-pub const fn export_output_needs_wat_shim<T: ReturnIntoJS>() -> bool {
-	!return_into_js_is_direct::<T>()
-		|| <ReturnSlot1<T> as Slot>::INTO_JS_WAT_CONV.is_some()
-		|| <ReturnSlot2<T> as Slot>::INTO_JS_WAT_CONV.is_some()
-		|| <ReturnSlot3<T> as Slot>::INTO_JS_WAT_CONV.is_some()
-		|| <ReturnSlot4<T> as Slot>::INTO_JS_WAT_CONV.is_some()
-}
-
-#[must_use]
 pub const fn export_output_frame_size<T: ReturnIntoJS>() -> usize {
 	// LLVM keeps the Wasm stack pointer 16-byte aligned. Rounding every shim
 	// frame to that alignment preserves the invariant when the frame is allocated.
