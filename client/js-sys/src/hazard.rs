@@ -372,11 +372,10 @@ impl FromJsConv {
 /// from a JavaScript value to a Rust value. `JS_CONV` produces the primitive
 /// slots and `from_abi` reconstructs the Rust value. Multi-slot `ABI`
 /// representations must define one slot template for every non-empty slot.
-/// Indirect return `ABIs` must define an `sret` function.
 pub unsafe trait FromJS {
 	const JS_CONV: Option<FromJsConv> = None;
 
-	type Abi: ReturnAbi;
+	type Abi: WasmAbi;
 
 	fn from_abi(raw: Self::Abi) -> Self;
 }
@@ -391,10 +390,10 @@ pub unsafe trait FromJS {
 /// `Abi`, `from_option_abi`, and `JS_CONV` must describe one consistent
 /// conversion from a JavaScript value to `Option<T>`.
 #[doc(hidden)]
-pub unsafe trait OptionFromAbi<T: FromJS>: ReturnAbi {
+pub unsafe trait OptionFromAbi<T: FromJS>: WasmAbi {
 	const JS_CONV: Option<FromJsConv> = T::JS_CONV;
 
-	type Abi: ReturnAbi;
+	type Abi: WasmAbi;
 
 	fn from_option_abi(raw: Self::Abi) -> Option<T>;
 }
@@ -415,9 +414,10 @@ where
 
 /// Converts the return value of a JavaScript import into its Rust result.
 ///
-/// `Abi` describes the successful return value. The raw carrier may be
-/// uninitialized when JavaScript throws, so implementations that catch
-/// exceptions must inspect the exception state before decoding it.
+/// `Abi` describes the successful return value and must support the Rust
+/// return `ABI`. Indirect returns must define an `sret` conversion. The raw
+/// carrier may be uninitialized when JavaScript throws, so implementations
+/// that catch exceptions must inspect the exception state before decoding it.
 pub trait ReturnFromJS {
 	const JS_CONV: ReturnConv<FromJsConv>;
 
@@ -429,6 +429,7 @@ pub trait ReturnFromJS {
 impl<T> ReturnFromJS for T
 where
 	T: FromJS,
+	T::Abi: ReturnAbi,
 {
 	const JS_CONV: ReturnConv<FromJsConv> = ReturnConv::Value(T::JS_CONV);
 
@@ -591,6 +592,7 @@ where
 impl<T> ReturnFromJS for Result<T, JsValue>
 where
 	T: FromJS,
+	T::Abi: ReturnAbi,
 {
 	const JS_CONV: ReturnConv<FromJsConv> = ReturnConv::Result(T::JS_CONV);
 

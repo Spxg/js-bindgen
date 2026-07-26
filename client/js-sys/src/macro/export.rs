@@ -170,7 +170,7 @@ macro_rules! wat_export_indirect {
 #[macro_export]
 macro_rules! wat_export {
 	($raw:expr, $export:expr, ($(($par:literal, $input:ty)),*) $(,)?) => {{
-		$($crate::r#macro::validate_return_from_js::<$input>();)*
+		$($crate::r#macro::validate_from_js::<$input>();)*
 
 		if $crate::r#macro::wat_export_needs_shim!(($(($par, $input)),*)) {
 			$crate::r#macro::wat_export_direct!($raw, $export, ($(($par, $input)),*))
@@ -179,7 +179,7 @@ macro_rules! wat_export {
 		}
 	}};
 	($raw:expr, $export:expr, ($(($par:literal, $input:ty)),*), $output:ty $(,)?) => {{
-		$($crate::r#macro::validate_return_from_js::<$input>();)*
+		$($crate::r#macro::validate_from_js::<$input>();)*
 		$crate::r#macro::validate_return_into_js::<$output>();
 
 		if !$crate::r#macro::wat_export_needs_shim!(
@@ -214,7 +214,7 @@ macro_rules! js_export_input_arguments {
 		const SLOTS: [$crate::r#macro::WatSlot; 4] =
 			$crate::r#macro::from_js_wat_slots::<$ty>();
 		const TEMPLATES: [&::core::primitive::str; 4] =
-			$crate::r#macro::js_output_templates::<$ty>();
+			$crate::r#macro::js_from_templates::<$ty>();
 		const VALUES: [&::core::primitive::str; 4] = [
 			$crate::r#macro::js_template!(TEMPLATES[0], value = $par),
 			$crate::r#macro::js_template!(TEMPLATES[1], value = $par),
@@ -298,7 +298,7 @@ macro_rules! js_export_output_expression {
 #[macro_export]
 macro_rules! js_export {
 	($export:expr, ($(($par:literal, $input:ty)),*) $(,)?) => {{
-		$($crate::r#macro::validate_return_from_js::<$input>();)*
+		$($crate::r#macro::validate_from_js::<$input>();)*
 		const PARAMETERS: &::core::primitive::str =
 			$crate::r#macro::js_export_parameters!($(($par, $input)),*);
 		const ARGUMENTS: &::core::primitive::str =
@@ -315,7 +315,7 @@ macro_rules! js_export {
 		)
 	}};
 	($export:expr, ($(($par:literal, $input:ty)),*), $output:ty $(,)?) => {{
-		$($crate::r#macro::validate_return_from_js::<$input>();)*
+		$($crate::r#macro::validate_from_js::<$input>();)*
 		$crate::r#macro::validate_return_into_js::<$output>();
 		const PARAMETERS: &::core::primitive::str =
 			$crate::r#macro::js_export_parameters!($(($par, $input)),*);
