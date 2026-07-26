@@ -62,6 +62,9 @@ extern "js-sys" {
 	fn import_option_js_value_raw(value: Option<JsValue>) -> Option<JsValue>;
 
 	#[js_sys(js_embed = "identity")]
+	fn import_result_unit_raw() -> Result<(), JsValue>;
+
+	#[js_sys(js_embed = "identity")]
 	fn import_result_i32_raw(value: i32) -> Result<i32, JsValue>;
 
 	#[js_sys(js_embed = "identity")]
@@ -78,6 +81,9 @@ extern "js-sys" {
 
 	#[js_sys(js_embed = "throw_value")]
 	fn import_result_js_value_err_raw(value: JsValue) -> Result<JsValue, JsValue>;
+
+	#[js_sys(js_embed = "throw_value")]
+	fn import_result_unit_err_raw() -> Result<(), JsValue>;
 
 	#[js_sys(js_embed = "identity")]
 	fn import_js_value_raw(value: JsValue) -> JsValue;
@@ -185,6 +191,16 @@ fn bench_export_option_js_value_some(value: JsValue) -> Option<JsValue> {
 #[js_sys]
 fn bench_export_option_js_value_none() -> Option<JsValue> {
 	None
+}
+
+#[js_sys]
+fn bench_export_result_unit_ok() -> Result<(), JsValue> {
+	Ok(())
+}
+
+#[js_sys]
+fn bench_export_result_unit_err() -> Result<(), JsValue> {
+	Err(JsValue::UNDEFINED)
 }
 
 #[js_sys]
@@ -328,6 +344,16 @@ fn bench_import_option_js_value_some(value: Option<JsValue>) -> Option<JsValue> 
 #[js_sys]
 fn bench_import_option_js_value_none() -> i32 {
 	i32::from(import_option_js_value_raw(None).is_none())
+}
+
+#[js_sys]
+fn bench_import_result_unit_ok() -> Result<(), JsValue> {
+	import_result_unit_raw()
+}
+
+#[js_sys]
+fn bench_import_result_unit_err() -> i32 {
+	i32::from(import_result_unit_err_raw().is_err())
 }
 
 #[js_sys]

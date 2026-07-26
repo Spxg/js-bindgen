@@ -303,6 +303,69 @@ fn single_slot_result() {
 }
 
 #[test]
+fn unit_result() {
+	let (wat, js) = expand(&quote! {
+		pub fn succeeds() -> Result<(), JsValue> {
+			Ok(())
+		}
+	});
+
+	inline_snap::inline_snap!(
+		wat,
+		"
+		(import \"js_sys\" \"externref.table\" (table $js_sys.import.externref.table (@sym (name \
+		 \"js_sys.externref.table\")) 2 externref))
+		(import \"env\" \"js_sys.externref.release\" (func $js_sys.externref.release (@sym) (param i32)))
+		(import \"env\" \"raw\" (func $raw (@sym (name \"__export_succeeds\")) (param i32)))
+		(import \"env\" \"__stack_pointer\" (global $__stack_pointer (mut i32)))
+		(func $export (@sym (name \"succeeds\")) (result i32 externref)
+		  (local $retptr i32)
+		  (local $js_sys.result.discriminant i32)
+		  (local $js_sys.externref.index i32)
+		  global.get $__stack_pointer
+		  i32.const 16
+		  i32.sub
+		  local.tee $retptr
+		  global.set $__stack_pointer
+		  local.get $retptr
+		  call $raw (@reloc)
+		  local.get $retptr
+		  i32.load offset=0
+		  local.tee $js_sys.result.discriminant
+		  local.get $retptr
+		  i32.load offset=4
+		  local.set $js_sys.externref.index
+		  local.get $js_sys.result.discriminant
+		  if (result externref)
+		    local.get $js_sys.externref.index
+		    table.get $js_sys.import.externref.table (@reloc)
+		    local.get $js_sys.externref.index
+		    i32.const 2
+		    i32.ge_u
+		    if
+		      local.get $js_sys.externref.index
+		      call $js_sys.externref.release (@reloc)
+		    end
+		  else
+		    ref.null extern
+		  end
+		  local.get $retptr
+		  i32.const 16
+		  i32.add
+		  global.set $__stack_pointer
+		)"
+	);
+	assert_eq!(
+		js,
+		r"() => {
+    const ret = wasmExports['succeeds']()
+    if (ret[0] !== 0) throw ret[1]
+    return undefined
+}"
+	);
+}
+
+#[test]
 fn no_parameters() {
 	let (wat, js) = expand(&quote! {
 		pub fn answer() -> u32 {

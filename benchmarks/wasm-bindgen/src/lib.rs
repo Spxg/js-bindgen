@@ -44,6 +44,9 @@ extern "C" {
 	fn import_option_js_value_raw(value: Option<JsValue>) -> Option<JsValue>;
 
 	#[wasm_bindgen(catch, js_name = identity)]
+	fn import_result_unit_raw() -> Result<(), JsValue>;
+
+	#[wasm_bindgen(catch, js_name = identity)]
 	fn import_result_i32_raw(value: i32) -> Result<i32, JsValue>;
 
 	#[wasm_bindgen(catch, js_name = identity)]
@@ -66,6 +69,9 @@ extern "C" {
 
 	#[wasm_bindgen(catch, js_name = throw_value)]
 	fn import_result_js_value_err_raw(value: JsValue) -> Result<JsValue, JsValue>;
+
+	#[wasm_bindgen(catch, js_name = throw_value)]
+	fn import_result_unit_err_raw() -> Result<(), JsValue>;
 }
 
 #[wasm_bindgen(inline_js = "export function length(value) { return value.length; }")]
@@ -173,6 +179,16 @@ pub fn bench_export_option_js_value_some(value: JsValue) -> Option<JsValue> {
 #[wasm_bindgen]
 pub fn bench_export_option_js_value_none() -> Option<JsValue> {
 	None
+}
+
+#[wasm_bindgen]
+pub fn bench_export_result_unit_ok() -> Result<(), JsValue> {
+	Ok(())
+}
+
+#[wasm_bindgen]
+pub fn bench_export_result_unit_err() -> Result<(), JsValue> {
+	Err(JsValue::UNDEFINED)
 }
 
 #[wasm_bindgen]
@@ -316,6 +332,16 @@ pub fn bench_import_option_js_value_some(value: Option<JsValue>) -> Option<JsVal
 #[wasm_bindgen]
 pub fn bench_import_option_js_value_none() -> i32 {
 	i32::from(import_option_js_value_raw(None).is_none())
+}
+
+#[wasm_bindgen]
+pub fn bench_import_result_unit_ok() -> Result<(), JsValue> {
+	import_result_unit_raw()
+}
+
+#[wasm_bindgen]
+pub fn bench_import_result_unit_err() -> i32 {
+	i32::from(import_result_unit_err_raw().is_err())
 }
 
 #[wasm_bindgen]

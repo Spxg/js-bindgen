@@ -210,15 +210,29 @@ macro_rules! wat_locals {
 macro_rules! wat_slots {
 	(types, $slots:expr, $field:ident $(,)?) => {{
 		const SLOTS: [$crate::r#macro::WatSlot; 4] = $slots;
+		const SEP1: &::core::primitive::str =
+			if SLOTS[0].$field.is_empty() { "" } else { " " };
+		const SEP2: &::core::primitive::str =
+			if SLOTS[0].$field.is_empty() && SLOTS[1].$field.is_empty() {
+				""
+			} else {
+				" "
+			};
+		const SEP3: &::core::primitive::str =
+			if SLOTS[0].$field.is_empty()
+				&& SLOTS[1].$field.is_empty()
+				&& SLOTS[2].$field.is_empty()
+			{
+				""
+			} else {
+				" "
+			};
 
-		$crate::r#macro::const_concat!(
-			SLOTS[0].$field,
-			$crate::r#macro::separator(SLOTS[1].$field),
-			SLOTS[1].$field,
-			$crate::r#macro::separator(SLOTS[2].$field),
-			SLOTS[2].$field,
-			$crate::r#macro::separator(SLOTS[3].$field),
-			SLOTS[3].$field
+		$crate::r#macro::const_concat_if!(
+			!SLOTS[0].$field.is_empty() => [SLOTS[0].$field],
+			!SLOTS[1].$field.is_empty() => [SEP1, SLOTS[1].$field],
+			!SLOTS[2].$field.is_empty() => [SEP2, SLOTS[2].$field],
+			!SLOTS[3].$field.is_empty() => [SEP3, SLOTS[3].$field],
 		)
 	}};
 	(grouped_param, $slots:expr, $field:ident $(,)?) => {{

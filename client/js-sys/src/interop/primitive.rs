@@ -204,6 +204,50 @@ slot!("i32", isize, usize);
 #[cfg(target_arch = "wasm64")]
 slot!("i64", isize, usize);
 
+// SAFETY: Unit has no Rust-to-JavaScript payload and becomes `undefined`.
+unsafe impl IntoJS for () {
+	const JS_CONV: Option<IntoJsConv> = Some(IntoJsConv::new("undefined"));
+
+	type Abi = EmptySlot;
+
+	fn into_abi(self) -> Self::Abi {
+		EmptySlot::new()
+	}
+}
+
+// SAFETY: JavaScript-to-Rust unit conversion ignores the value and uses a
+// direct zero placeholder so it can also represent a successful `Result<()>`.
+unsafe impl FromJS for () {
+	const JS_CONV: Option<FromJsConv> = Some(FromJsConv::slot1("0"));
+
+	type Abi = u32;
+
+	fn from_abi(_: Self::Abi) -> Self {}
+}
+
+// SAFETY: Zero denotes `None`; one denotes `Some(())`.
+unsafe impl OptionIntoAbi<()> for EmptySlot {
+	const JS_CONV: Option<IntoJsConv> = Some(IntoJsConv::new("$slot1 === 0 ? undefined : true"));
+
+	type Abi = u32;
+
+	fn into_option_abi(value: Option<()>) -> Self::Abi {
+		u32::from(value.is_some())
+	}
+}
+
+// SAFETY: `Nullish` JavaScript values become zero and all other values become
+// the presence tag for `Some(())`.
+unsafe impl OptionFromAbi<()> for u32 {
+	const JS_CONV: Option<FromJsConv> = Some(FromJsConv::slot1("$value == null ? 0 : 1"));
+
+	type Abi = Self;
+
+	fn from_option_abi(raw: Self::Abi) -> Option<()> {
+		(raw != 0).then_some(())
+	}
+}
+
 identity!(u8, u16, i8, i16, i32, i64, isize, f32, f64);
 from_js!(bool, u32, u64, usize);
 

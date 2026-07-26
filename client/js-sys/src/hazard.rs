@@ -581,7 +581,7 @@ impl<T, E> ReturnIntoJS for Result<T, E>
 where
 	T: IntoJS,
 	E: Into<JsValue>,
-	T::Abi: ReturnAbi<Slot3 = EmptySlot, Slot4 = EmptySlot>,
+	T::Abi: WasmAbi<Slot3 = EmptySlot, Slot4 = EmptySlot>,
 	<T::Abi as WasmAbi>::Slot1: Default,
 	<T::Abi as WasmAbi>::Slot2: Default,
 {

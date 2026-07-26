@@ -326,9 +326,21 @@ macro_rules! js_export {
 		const SLOTS: [$crate::r#macro::WatSlot; 4] =
 			$crate::r#macro::return_into_js_wat_slots::<$output>();
 		const ERROR_DISCRIMINANT: &::core::primitive::str =
-			if SLOTS[1].abi.is_empty() { "ret[1]" } else { "ret[2]" };
+			if SLOTS[0].abi.is_empty() {
+				"ret[0]"
+			} else if SLOTS[1].abi.is_empty() {
+				"ret[1]"
+			} else {
+				"ret[2]"
+			};
 		const ERROR: &::core::primitive::str =
-			if SLOTS[1].abi.is_empty() { "ret[2]" } else { "ret[3]" };
+			if SLOTS[0].abi.is_empty() {
+				"ret[1]"
+			} else if SLOTS[1].abi.is_empty() {
+				"ret[2]"
+			} else {
+				"ret[3]"
+			};
 		const THROW: &::core::primitive::str = if $crate::r#macro::return_into_js_is_result::<
 			$output,
 		>() {
