@@ -1,14 +1,16 @@
-#[rustfmt::skip]
-#[path = "closure.gen.rs"]
-mod closure;
-
 use alloc::boxed::Box;
 use core::marker::PhantomData;
 use core::mem::{self, ManuallyDrop};
 use core::ptr;
 
+use crate::JsValue;
 use crate::hazard::{IntoJS, IntoJsConv};
-use crate::{JsValue, r#macro};
+
+#[crate::js_sys(js_sys = crate)]
+extern "js-sys" {
+	#[js_sys(js_embed = "closure.unref")]
+	fn closure_unref(callback: &JsValue);
+}
 
 /// Type-erased information stored at the start of every closure allocation.
 #[doc(hidden)]
@@ -115,14 +117,8 @@ impl Drop for ClosureAllocation {
 	}
 }
 
-#[unsafe(export_name = "__export_closure_drop")]
-extern "C" fn closure_drop(
-	data_0: r#macro::FromJsSlot1<usize>,
-	data_1: r#macro::FromJsSlot2<usize>,
-	data_2: r#macro::FromJsSlot3<usize>,
-	data_3: r#macro::FromJsSlot4<usize>,
-) {
-	let data = r#macro::join_from_js::<usize>(data_0, data_1, data_2, data_3);
+#[crate::js_sys(js_sys = crate)]
+fn closure_drop(data: usize) {
 	if data == 0 {
 		return;
 	}
@@ -132,28 +128,6 @@ extern "C" fn closure_drop(
 	unsafe {
 		ClosureHeader::release(ptr::with_exposed_provenance_mut::<ClosureHeader>(data));
 	}
-}
-
-js_bindgen::unsafe_global_wat! {
-	"{}",
-	interpolate r#macro::wat_export!(
-		"__export_closure_drop",
-		"closure_drop",
-		(("data", usize)),
-	),
-}
-
-js_bindgen::export_js! {
-	module = "js_sys",
-	name = "closure_drop",
-	required_embeds = [
-		r#macro::js_from_embed::<usize>(),
-	],
-	"{}",
-	interpolate r#macro::js_export!(
-		"closure_drop",
-		(("data", usize)),
-	),
 }
 
 js_bindgen::embed_js!(
@@ -342,6 +316,6 @@ unsafe impl<T: ?Sized> IntoJS for Closure<T> {
 
 impl<T: ?Sized> Drop for Closure<T> {
 	fn drop(&mut self) {
-		closure::closure_unref(&self.value);
+		closure_unref(&self.value);
 	}
 }

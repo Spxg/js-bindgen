@@ -12,7 +12,7 @@ name = "conv"
 [dev-dependencies]
 criterion = { workspace = true }
 js-bindgen = { workspace = true }
-js-sys = { workspace = true, features = ["macro"] }
+js-sys = { workspace = true }
 
 [lints]
 workspace = true

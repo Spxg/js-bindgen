@@ -26,7 +26,6 @@ mod string;
 mod value;
 
 pub use js_bindgen;
-#[cfg(feature = "macro")]
 pub use js_sys_macro::{closure, js_sys};
 
 pub use crate::array::{JsArray, TryFromJsArrayError};
