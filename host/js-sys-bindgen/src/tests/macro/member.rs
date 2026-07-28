@@ -21,9 +21,8 @@ fn method() {
 						required_embeds = [::js_sys::r#macro::js_input_embed::<&::js_sys::JsValue>()],
 						"{}",
 						interpolate ::js_sys::r#macro::js_import!(
-							direct_open = ::js_sys::r#macro::js_function!("(", ") => ", ("arg0", &
-							::js_sys::JsValue)), direct_call = "arg0_0.test()", indirect_call = "arg0_0.test()",
-							inputs = [("arg0", & ::js_sys::JsValue)],
+							direct_wrapper = true, direct_call = "arg0_0.test()", indirect_call =
+							"arg0_0.test()", inputs = [("arg0", & ::js_sys::JsValue)],
 						),
 					}
 
@@ -73,8 +72,8 @@ fn method_par() {
 				pub fn test(self: &JsTest, par1: &JsValue, par2: &JsValue) {
 					::js_sys::js_bindgen::unsafe_global_wat! {
 						"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "test",
-						shim = "test_crate.test", inputs = [("arg0", & ::js_sys::JsValue), ("arg1", &
-						JsValue), ("arg2", & JsValue)],),
+						shim = "test_crate.test", inputs = [("arg0", & ::js_sys::JsValue), ("arg1", & JsValue),
+						("arg2", & JsValue)],),
 					}
 
 					::js_sys::js_bindgen::import_js! {
@@ -86,10 +85,9 @@ fn method_par() {
 						],
 						"{}",
 						interpolate ::js_sys::r#macro::js_import!(
-							direct_open = ::js_sys::r#macro::js_function!("(", ") => ", ("arg0", &
-							::js_sys::JsValue), ("arg1", & JsValue), ("arg2", & JsValue)), direct_call =
-							"arg0_0.test(arg1_0, arg2_0)", indirect_call = "arg0_0.test(arg1_0, arg2_0)", inputs
-							= [("arg0", & ::js_sys::JsValue), ("arg1", & JsValue), ("arg2", & JsValue)],
+							direct_wrapper = true, direct_call = "arg0_0.test(arg1_0, arg2_0)", indirect_call =
+							"arg0_0.test(arg1_0, arg2_0)", inputs = [("arg0", & ::js_sys::JsValue), ("arg1", &
+							JsValue), ("arg2", & JsValue)],
 						),
 					}
 
@@ -161,8 +159,7 @@ fn getter() {
 				pub fn test(self: &JsTest) -> JsValue {
 					::js_sys::js_bindgen::unsafe_global_wat! {
 						"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "test",
-						shim = "test_crate.test", inputs = [("arg0", & ::js_sys::JsValue)], output =
-						JsValue,),
+						shim = "test_crate.test", inputs = [("arg0", & ::js_sys::JsValue)], output = JsValue,),
 					}
 
 					::js_sys::js_bindgen::import_js! {
@@ -175,8 +172,7 @@ fn getter() {
 						],
 						"{}",
 						interpolate ::js_sys::r#macro::js_import!(
-							direct_open = ::js_sys::r#macro::js_function!("(", ") => ", ("arg0", &
-							::js_sys::JsValue)), direct_call = "arg0_0.test", indirect_call = "arg0_0.test",
+							direct_wrapper = true, direct_call = "arg0_0.test", indirect_call = "arg0_0.test",
 							inputs = [("arg0", & ::js_sys::JsValue)], output = JsValue,
 						),
 					}
@@ -250,10 +246,9 @@ fn setter() {
 						],
 						"{}",
 						interpolate ::js_sys::r#macro::js_import!(
-							direct_open = ::js_sys::r#macro::js_function!("(", ") => ", ("arg0", &
-							::js_sys::JsValue), ("arg1", & JsValue)), direct_call = "arg0_0.test = arg1_0",
-							indirect_call = "arg0_0.test = arg1_0", inputs = [("arg0", & ::js_sys::JsValue),
-							("arg1", & JsValue)],
+							direct_wrapper = true, direct_call = "arg0_0.test = arg1_0", indirect_call =
+							"arg0_0.test = arg1_0", inputs = [("arg0", & ::js_sys::JsValue), ("arg1", &
+							JsValue)],
 						),
 					}
 

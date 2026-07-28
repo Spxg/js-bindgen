@@ -24,7 +24,7 @@ pub(super) fn js_value_partial_eq(value1: &JsValue, value2: &JsValue) -> bool {
 		],
 		"{}",
 		interpolate r#macro::js_import!(
-			direct_open = "", direct_call = "this.#jsEmbed.js_sys['js_value.partial_eq']",
+			direct_wrapper = false, direct_call = "this.#jsEmbed.js_sys['js_value.partial_eq']",
 			indirect_call = "this.#jsEmbed.js_sys['js_value.partial_eq'](arg0_0, arg1_0)", inputs =
 			[("arg0", & JsValue), ("arg1", & JsValue)], output = bool,
 		),

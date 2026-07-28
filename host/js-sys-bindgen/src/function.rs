@@ -660,7 +660,7 @@ impl<'a> State<'a> {
 			.zip(input_tys.iter())
 			.map(|(name, ty)| quote_spanned!(*span=> (#name, #ty)))
 			.collect();
-		let (direct_fn_open, direct_js_call, indirect_js_call) = match binding {
+		let (direct_wrapper, direct_js_call, indirect_js_call) = match binding {
 			JsBinding::Generate(binding) => {
 				let call_inputs = if binding.has_receiver() {
 					input_value_names.iter().skip(1).join(", ")
@@ -671,29 +671,15 @@ impl<'a> State<'a> {
 					binding.expression(self.namespace, &input_value_names, &call_inputs);
 
 				if binding.requires_wrapper(self.namespace) {
-					(
-						quote_spanned!(*span=>
-							#r#macro::js_function!("(", ") => ", #(#js_inputs),*)
-						),
-						expression.clone(),
-						expression,
-					)
+					(true, expression.clone(), expression)
 				} else {
 					let path = binding.path(self.namespace, &input_value_names);
-					(
-						quote_spanned!(*span=> ""),
-						path.clone(),
-						format!("{path}({input_names_joined})"),
-					)
+					(false, path.clone(), format!("{path}({input_names_joined})"))
 				}
 			}
 			JsBinding::Embed(name) => {
 				let path = format!("this.#jsEmbed.{crate_}['{name}']");
-				(
-					quote_spanned!(*span=> ""),
-					path.clone(),
-					format!("{path}({input_names_joined})"),
-				)
+				(false, path.clone(), format!("{path}({input_names_joined})"))
 			}
 			JsBinding::Import => return None,
 		};
@@ -706,7 +692,7 @@ impl<'a> State<'a> {
 				#(#required_embeds,)*
 				"{}",
 				interpolate #r#macro::js_import!(
-					direct_open = #direct_fn_open,
+					direct_wrapper = #direct_wrapper,
 					direct_call = #direct_js_call,
 					indirect_call = #indirect_js_call,
 					inputs = [#(#js_inputs),*],

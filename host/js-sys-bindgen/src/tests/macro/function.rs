@@ -10,8 +10,8 @@ fn basic() {
 		{
 			pub fn log(data: &JsValue) {
 				::js_sys::js_bindgen::unsafe_global_wat! {
-					"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "log",
-					shim = "test_crate.log", inputs = [("arg0", & JsValue)],),
+					"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "log", shim
+					= "test_crate.log", inputs = [("arg0", & JsValue)],),
 				}
 
 				::js_sys::js_bindgen::import_js! {
@@ -20,7 +20,7 @@ fn basic() {
 					required_embeds = [::js_sys::r#macro::js_input_embed::<&JsValue>()],
 					"{}",
 					interpolate ::js_sys::r#macro::js_import!(
-						direct_open = "", direct_call = "globalThis.log", indirect_call =
+						direct_wrapper = false, direct_call = "globalThis.log", indirect_call =
 						"globalThis.log(arg0_0)", inputs = [("arg0", & JsValue)],
 					),
 				}
@@ -77,8 +77,7 @@ fn namespace() {
 					required_embeds = [::js_sys::r#macro::js_input_embed::<&JsValue>()],
 					"{}",
 					interpolate ::js_sys::r#macro::js_import!(
-						direct_open = ::js_sys::r#macro::js_function!("(", ") => ", ("arg0", &
-						JsValue)), direct_call = "globalThis.console.log(arg0_0)", indirect_call =
+						direct_wrapper = true, direct_call = "globalThis.console.log(arg0_0)", indirect_call =
 						"globalThis.console.log(arg0_0)", inputs = [("arg0", & JsValue)],
 					),
 				}
@@ -125,8 +124,8 @@ fn js_sys() {
 		{
 			pub fn log(data: &JsValue) {
 				js_sys::js_bindgen::unsafe_global_wat! {
-					"{}", interpolate js_sys::r#macro::wat_import!(module = "test_crate", import = "log",
-					shim = "test_crate.log", inputs = [("arg0", & JsValue)],),
+					"{}", interpolate js_sys::r#macro::wat_import!(module = "test_crate", import = "log", shim =
+					"test_crate.log", inputs = [("arg0", & JsValue)],),
 				}
 
 				js_sys::js_bindgen::import_js! {
@@ -135,7 +134,7 @@ fn js_sys() {
 					required_embeds = [js_sys::r#macro::js_input_embed::<&JsValue>()],
 					"{}",
 					interpolate js_sys::r#macro::js_import!(
-						direct_open = "", direct_call = "globalThis.log", indirect_call =
+						direct_wrapper = false, direct_call = "globalThis.log", indirect_call =
 						"globalThis.log(arg0_0)", inputs = [("arg0", & JsValue)],
 					),
 				}
@@ -182,8 +181,8 @@ fn two_parameters() {
 		{
 			pub fn log(data1: &JsValue, data2: &JsValue) {
 				::js_sys::js_bindgen::unsafe_global_wat! {
-					"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "log",
-					shim = "test_crate.log", inputs = [("arg0", & JsValue), ("arg1", & JsValue)],),
+					"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "log", shim
+					= "test_crate.log", inputs = [("arg0", & JsValue), ("arg1", & JsValue)],),
 				}
 
 				::js_sys::js_bindgen::import_js! {
@@ -192,7 +191,7 @@ fn two_parameters() {
 					required_embeds = [::js_sys::r#macro::js_input_embed::<&JsValue>()],
 					"{}",
 					interpolate ::js_sys::r#macro::js_import!(
-						direct_open = "", direct_call = "globalThis.log", indirect_call =
+						direct_wrapper = false, direct_call = "globalThis.log", indirect_call =
 						"globalThis.log(arg0_0, arg1_0)", inputs = [("arg0", & JsValue), ("arg1", & JsValue)],
 					),
 				}
@@ -251,8 +250,8 @@ fn empty() {
 		{
 			pub fn log() {
 				::js_sys::js_bindgen::unsafe_global_wat! {
-					"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "log",
-					shim = "test_crate.log", inputs = [],),
+					"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "log", shim
+					= "test_crate.log", inputs = [],),
 				}
 
 				::js_sys::js_bindgen::import_js! {
@@ -260,8 +259,8 @@ fn empty() {
 					name = "log",
 					"{}",
 					interpolate ::js_sys::r#macro::js_import!(
-						direct_open = "", direct_call = "globalThis.log", indirect_call = "globalThis.log()",
-						inputs = [],
+						direct_wrapper = false, direct_call = "globalThis.log", indirect_call =
+						"globalThis.log()", inputs = [],
 					),
 				}
 
@@ -297,8 +296,8 @@ fn js_name() {
 		{
 			pub fn logx(data: &JsValue) {
 				::js_sys::js_bindgen::unsafe_global_wat! {
-					"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "logx",
-					shim = "test_crate.logx", inputs = [("arg0", & JsValue)],),
+					"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "logx", shim
+					= "test_crate.logx", inputs = [("arg0", & JsValue)],),
 				}
 
 				::js_sys::js_bindgen::import_js! {
@@ -307,7 +306,7 @@ fn js_name() {
 					required_embeds = [::js_sys::r#macro::js_input_embed::<&JsValue>()],
 					"{}",
 					interpolate ::js_sys::r#macro::js_import!(
-						direct_open = "", direct_call = "globalThis.log", indirect_call =
+						direct_wrapper = false, direct_call = "globalThis.log", indirect_call =
 						"globalThis.log(arg0_0)", inputs = [("arg0", & JsValue)],
 					),
 				}
@@ -402,8 +401,8 @@ fn js_embed() {
 		{
 			pub fn log(data: &JsValue) {
 				::js_sys::js_bindgen::unsafe_global_wat! {
-					"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "log",
-					shim = "test_crate.log", inputs = [("arg0", & JsValue)],),
+					"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "log", shim
+					= "test_crate.log", inputs = [("arg0", & JsValue)],),
 				}
 
 				::js_sys::js_bindgen::import_js! {
@@ -415,8 +414,8 @@ fn js_embed() {
 					],
 					"{}",
 					interpolate ::js_sys::r#macro::js_import!(
-						direct_open = "", direct_call = "this.#jsEmbed.test_crate['embed']", indirect_call =
-						"this.#jsEmbed.test_crate['embed'](arg0_0)", inputs = [("arg0", & JsValue)],
+						direct_wrapper = false, direct_call = "this.#jsEmbed.test_crate['embed']", indirect_call
+						= "this.#jsEmbed.test_crate['embed'](arg0_0)", inputs = [("arg0", & JsValue)],
 					),
 				}
 
@@ -475,7 +474,7 @@ fn r#return() {
 					],
 					"{}",
 					interpolate ::js_sys::r#macro::js_import!(
-						direct_open = "", direct_call = "globalThis.is_nan", indirect_call =
+						direct_wrapper = false, direct_call = "globalThis.is_nan", indirect_call =
 						"globalThis.is_nan()", inputs = [], output = JsValue,
 					),
 				}
@@ -522,8 +521,8 @@ fn cfg() {
 			#[cfg(all())]
 			pub fn log() {
 				::js_sys::js_bindgen::unsafe_global_wat! {
-					"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "log",
-					shim = "test_crate.log", inputs = [],),
+					"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "log", shim
+					= "test_crate.log", inputs = [],),
 				}
 
 				::js_sys::js_bindgen::import_js! {
@@ -531,8 +530,8 @@ fn cfg() {
 					name = "log",
 					"{}",
 					interpolate ::js_sys::r#macro::js_import!(
-						direct_open = "", direct_call = "globalThis.log", indirect_call = "globalThis.log()",
-						inputs = [],
+						direct_wrapper = false, direct_call = "globalThis.log", indirect_call =
+						"globalThis.log()", inputs = [],
 					),
 				}
 

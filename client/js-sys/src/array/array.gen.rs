@@ -52,9 +52,8 @@ impl<T> JsArray<T> {
 			],
 			"{}",
 			interpolate r#macro::js_import!(
-				direct_open = r#macro::js_function!("(", ") => ", ("arg0", & JsValue)), direct_call
-				= "arg0_0.length", indirect_call = "arg0_0.length", inputs = [("arg0", & JsValue)],
-				output = u32,
+				direct_wrapper = true, direct_call = "arg0_0.length", indirect_call =
+				"arg0_0.length", inputs = [("arg0", & JsValue)], output = u32,
 			),
 		}
 
@@ -99,7 +98,7 @@ pub(super) unsafe fn array_js_value_decode(
 		],
 		"{}",
 		interpolate r#macro::js_import!(
-			direct_open = "", direct_call = "this.#jsEmbed.js_sys['array.js_value.decode']",
+			direct_wrapper = false, direct_call = "this.#jsEmbed.js_sys['array.js_value.decode']",
 			indirect_call = "this.#jsEmbed.js_sys['array.js_value.decode'](arg0_0, arg1_0)", inputs
 			= [("arg0", PtrConst < JsValue >), ("arg1", PtrLength < JsValue >)], output = JsArray <
 			JsValue >,
@@ -158,7 +157,7 @@ pub(super) unsafe fn array_js_value_encode(
 		],
 		"{}",
 		interpolate r#macro::js_import!(
-			direct_open = "", direct_call = "this.#jsEmbed.js_sys['array.js_value.encode']",
+			direct_wrapper = false, direct_call = "this.#jsEmbed.js_sys['array.js_value.encode']",
 			indirect_call =
 			"this.#jsEmbed.js_sys['array.js_value.encode'](arg0_0, arg1_0, arg2_0, arg3_0, arg4_0)",
 			inputs = [("arg0", & JsArray), ("arg1", PtrMut < JsValue >), ("arg2", PtrLength <
@@ -246,9 +245,9 @@ pub(super) unsafe fn array_u32_decode(array: PtrConst<u32>, len: PtrLength<u32>)
 		],
 		"{}",
 		interpolate r#macro::js_import!(
-			direct_open = "", direct_call = "this.#jsEmbed.js_sys['view.getUint32']", indirect_call
-			= "this.#jsEmbed.js_sys['view.getUint32'](arg0_0, arg1_0)", inputs = [("arg0", PtrConst
-			< u32 >), ("arg1", PtrLength < u32 >)], output = JsArray < u32 >,
+			direct_wrapper = false, direct_call = "this.#jsEmbed.js_sys['view.getUint32']",
+			indirect_call = "this.#jsEmbed.js_sys['view.getUint32'](arg0_0, arg1_0)", inputs =
+			[("arg0", PtrConst < u32 >), ("arg1", PtrLength < u32 >)], output = JsArray < u32 >,
 		),
 	}
 
@@ -297,7 +296,7 @@ pub(super) unsafe fn array_u32_encode(
 		],
 		"{}",
 		interpolate r#macro::js_import!(
-			direct_open = "", direct_call = "this.#jsEmbed.js_sys['array.u32.encode']",
+			direct_wrapper = false, direct_call = "this.#jsEmbed.js_sys['array.u32.encode']",
 			indirect_call = "this.#jsEmbed.js_sys['array.u32.encode'](arg0_0, arg1_0, arg2_0)",
 			inputs = [("arg0", & JsArray < u32 >), ("arg1", PtrMut < u32 >), ("arg2", PtrLength <
 			u32 >)], output = bool,

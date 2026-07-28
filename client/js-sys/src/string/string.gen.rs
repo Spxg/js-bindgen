@@ -48,7 +48,7 @@ pub(super) fn string_constructor(value: &JsValue) -> JsString {
 		],
 		"{}",
 		interpolate r#macro::js_import!(
-			direct_open = "", direct_call = "globalThis.String", indirect_call =
+			direct_wrapper = false, direct_call = "globalThis.String", indirect_call =
 			"globalThis.String(arg0_0)", inputs = [("arg0", & JsValue)], output = JsString,
 		),
 	}
@@ -89,8 +89,8 @@ pub(super) unsafe fn string_eq(string: &JsString, array: PtrConst<u8>, len: PtrL
 		],
 		"{}",
 		interpolate r#macro::js_import!(
-			direct_open = "", direct_call = "this.#jsEmbed.js_sys['string.eq']", indirect_call =
-			"this.#jsEmbed.js_sys['string.eq'](arg0_0, arg1_0, arg2_0)", inputs = [("arg0", &
+			direct_wrapper = false, direct_call = "this.#jsEmbed.js_sys['string.eq']", indirect_call
+			= "this.#jsEmbed.js_sys['string.eq'](arg0_0, arg1_0, arg2_0)", inputs = [("arg0", &
 			JsString), ("arg1", PtrConst < u8 >), ("arg2", PtrLength < u8 >)], output = bool,
 		),
 	}
@@ -155,9 +155,9 @@ pub(super) unsafe fn string_decode(array: PtrConst<u8>, len: PtrLength<u8>) -> J
 		],
 		"{}",
 		interpolate r#macro::js_import!(
-			direct_open = "", direct_call = "this.#jsEmbed.js_sys['string.decode']", indirect_call =
-			"this.#jsEmbed.js_sys['string.decode'](arg0_0, arg1_0)", inputs = [("arg0", PtrConst <
-			u8 >), ("arg1", PtrLength < u8 >)], output = JsString,
+			direct_wrapper = false, direct_call = "this.#jsEmbed.js_sys['string.decode']",
+			indirect_call = "this.#jsEmbed.js_sys['string.decode'](arg0_0, arg1_0)", inputs =
+			[("arg0", PtrConst < u8 >), ("arg1", PtrLength < u8 >)], output = JsString,
 		),
 	}
 
@@ -199,7 +199,7 @@ pub(super) fn string_utf8_length(string: &JsString) -> f64 {
 		],
 		"{}",
 		interpolate r#macro::js_import!(
-			direct_open = "", direct_call = "this.#jsEmbed.js_sys['string.utf8_length']",
+			direct_wrapper = false, direct_call = "this.#jsEmbed.js_sys['string.utf8_length']",
 			indirect_call = "this.#jsEmbed.js_sys['string.utf8_length'](arg0_0)", inputs = [("arg0",
 			& JsString)], output = f64,
 		),
@@ -239,9 +239,9 @@ pub(super) unsafe fn string_encode(string: &JsString, array: PtrMut<u8>, len: Pt
 		],
 		"{}",
 		interpolate r#macro::js_import!(
-			direct_open = "", direct_call = "this.#jsEmbed.js_sys['string.encode']", indirect_call =
-			"this.#jsEmbed.js_sys['string.encode'](arg0_0, arg1_0, arg2_0)", inputs = [("arg0", &
-			JsString), ("arg1", PtrMut < u8 >), ("arg2", PtrLength < u8 >)],
+			direct_wrapper = false, direct_call = "this.#jsEmbed.js_sys['string.encode']",
+			indirect_call = "this.#jsEmbed.js_sys['string.encode'](arg0_0, arg1_0, arg2_0)", inputs
+			= [("arg0", & JsString), ("arg1", PtrMut < u8 >), ("arg2", PtrLength < u8 >)],
 		),
 	}
 

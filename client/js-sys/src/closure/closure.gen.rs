@@ -17,8 +17,9 @@ pub(super) fn closure_unref(callback: &JsValue) {
 		required_embeds = [("js_sys", "closure.unref"), r#macro::js_input_embed::<&JsValue>()],
 		"{}",
 		interpolate r#macro::js_import!(
-			direct_open = "", direct_call = "this.#jsEmbed.js_sys['closure.unref']", indirect_call =
-			"this.#jsEmbed.js_sys['closure.unref'](arg0_0)", inputs = [("arg0", & JsValue)],
+			direct_wrapper = false, direct_call = "this.#jsEmbed.js_sys['closure.unref']",
+			indirect_call = "this.#jsEmbed.js_sys['closure.unref'](arg0_0)", inputs = [("arg0", &
+			JsValue)],
 		),
 	}
 

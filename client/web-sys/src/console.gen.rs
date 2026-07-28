@@ -17,8 +17,8 @@ pub fn log0() {
 		name = "console.log0",
 		"{}",
 		interpolate r#macro::js_import!(
-			direct_open = r#macro::js_function!("(", ") => ",), direct_call =
-			"globalThis.console.log()", indirect_call = "globalThis.console.log()", inputs = [],
+			direct_wrapper = true, direct_call = "globalThis.console.log()", indirect_call =
+			"globalThis.console.log()", inputs = [],
 		),
 	}
 
@@ -42,9 +42,8 @@ pub fn log<T: JsCast>(data: &[T]) {
 		required_embeds = [r#macro::js_input_embed::<&[JsValue]>()],
 		"{}",
 		interpolate r#macro::js_import!(
-			direct_open = r#macro::js_function!("(", ") => ", ("arg0", & [JsValue])), direct_call =
-			"globalThis.console.log(arg0_0)", indirect_call = "globalThis.console.log(arg0_0)",
-			inputs = [("arg0", & [JsValue])],
+			direct_wrapper = true, direct_call = "globalThis.console.log(arg0_0)", indirect_call =
+			"globalThis.console.log(arg0_0)", inputs = [("arg0", & [JsValue])],
 		),
 	}
 
@@ -78,10 +77,9 @@ pub fn log2(data1: &JsValue, data2: &JsValue) {
 		required_embeds = [r#macro::js_input_embed::<&JsValue>()],
 		"{}",
 		interpolate r#macro::js_import!(
-			direct_open = r#macro::js_function!("(", ") => ", ("arg0", & JsValue), ("arg1", &
-			JsValue)), direct_call = "globalThis.console.log(arg0_0, arg1_0)", indirect_call =
-			"globalThis.console.log(arg0_0, arg1_0)", inputs = [("arg0", & JsValue), ("arg1", &
-			JsValue)],
+			direct_wrapper = true, direct_call = "globalThis.console.log(arg0_0, arg1_0)",
+			indirect_call = "globalThis.console.log(arg0_0, arg1_0)", inputs = [("arg0", & JsValue),
+			("arg1", & JsValue)],
 		),
 	}
 
@@ -118,9 +116,8 @@ pub fn error(data: &JsValue) {
 		required_embeds = [r#macro::js_input_embed::<&JsValue>()],
 		"{}",
 		interpolate r#macro::js_import!(
-			direct_open = r#macro::js_function!("(", ") => ", ("arg0", & JsValue)), direct_call =
-			"globalThis.console.error(arg0_0)", indirect_call = "globalThis.console.error(arg0_0)",
-			inputs = [("arg0", & JsValue)],
+			direct_wrapper = true, direct_call = "globalThis.console.error(arg0_0)", indirect_call =
+			"globalThis.console.error(arg0_0)", inputs = [("arg0", & JsValue)],
 		),
 	}
 
