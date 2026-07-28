@@ -152,7 +152,7 @@ fn getter() {
 		{},
 		{
 			extern "js-sys" {
-				#[js_sys(property)]
+				#[js_sys(getter)]
 				pub fn test(self: &JsTest) -> JsValue;
 			}
 		},
@@ -228,7 +228,7 @@ fn setter() {
 		{},
 		{
 			extern "js-sys" {
-				#[js_sys(property)]
+				#[js_sys(setter)]
 				pub fn test(self: &JsTest, value: &JsValue);
 			}
 		},

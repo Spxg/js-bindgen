@@ -19,14 +19,21 @@ pub enum Function {
 	Impl(ItemImpl),
 }
 
-#[derive(Eq, PartialEq)]
 pub enum FunctionJsOutput {
 	Generate {
 		js_name: Option<String>,
-		property: bool,
+		static_of: Option<Path>,
+		operation: Option<FunctionOperation>,
 	},
 	Embed(String),
 	Import,
+}
+
+#[derive(Clone, Copy)]
+pub enum FunctionOperation {
+	Constructor,
+	Getter,
+	Setter,
 }
 
 struct State<'a> {
@@ -39,7 +46,7 @@ struct State<'a> {
 	inputs: Vec<InputArg>,
 	output_ty: Option<Type>,
 	impl_generic_params: TokenStream,
-	r#type: OutputType,
+	binding: JsBinding,
 	span: Span,
 }
 
@@ -51,22 +58,28 @@ struct InputArg {
 	type_override: bool,
 }
 
-enum OutputType {
-	Generate {
-		js_name: Option<String>,
-		member: Option<Member>,
-	},
+enum JsBinding {
+	Generate(GeneratedBinding),
 	Embed(String),
 	Import,
 }
 
-struct Member {
-	self_ty: Path,
-	r#type: MemberType,
+struct GeneratedBinding {
+	target: JsTarget,
+	operation: JsOperation,
+	js_name: String,
 }
 
-enum MemberType {
-	Method,
+enum JsTarget {
+	Global,
+	Instance(Path),
+	Static(Path),
+}
+
+#[derive(Clone, Copy)]
+enum JsOperation {
+	Call,
+	Construct,
 	Getter,
 	Setter,
 }
@@ -123,9 +136,23 @@ impl Function {
 			mut sig,
 			..
 		} = item;
+		let outer_attrs: Vec<_> = attrs
+			.iter()
+			.filter(|attr| {
+				let path = attr.path();
+				path.is_ident("cfg") || path.is_ident("cfg_attr")
+			})
+			.cloned()
+			.collect();
 
 		let state = State::parse(
-			crate_, js_output, namespace, hygiene, &attrs, &mut sig, span,
+			crate_,
+			js_output,
+			namespace,
+			hygiene,
+			&outer_attrs,
+			&mut sig,
+			span,
 		)?;
 		let wat = state.wat();
 		let js = state.js();
@@ -135,7 +162,7 @@ impl Function {
 			inputs,
 			output_ty,
 			impl_generic_params,
-			r#type,
+			binding,
 			..
 		} = state;
 		let ident = &sig.ident;
@@ -204,9 +231,9 @@ impl Function {
 			}
 		};
 
-		if let Some(Member { self_ty, .. }) = r#type.member() {
+		if let Some(owner) = binding.owner() {
 			Ok(Self::Impl(parse_quote_spanned! {span=>
-				impl #impl_generic_params #self_ty {
+				impl #impl_generic_params #owner {
 					#item_fn
 				}
 			}))
@@ -238,7 +265,8 @@ impl Default for FunctionJsOutput {
 	fn default() -> Self {
 		Self::Generate {
 			js_name: None,
-			property: false,
+			static_of: None,
+			operation: None,
 		}
 	}
 }
@@ -248,18 +276,11 @@ impl<'a> State<'a> {
 		crate_: &'a str,
 		js_output: FunctionJsOutput,
 		namespace: Option<&'a str>,
-		hygiene: &'a mut Hygiene<'_>,
-		outer_attrs: &'a [Attribute],
+		hygiene: &mut Hygiene<'_>,
+		outer_attrs: &[Attribute],
 		sig: &mut Signature,
 		span: Span,
 	) -> Result<Self> {
-		let import_name = if let Some(namespace) = namespace {
-			format!("{namespace}.{}", sig.ident)
-		} else {
-			sig.ident.to_string()
-		};
-		let foreign_name = format!("{crate_}.{import_name}");
-
 		let mut self_ty = None;
 
 		let inputs = sig
@@ -339,45 +360,96 @@ impl<'a> State<'a> {
 			})
 			.collect::<Result<Vec<_>>>()?;
 
-		let r#type = match js_output {
-			FunctionJsOutput::Generate { js_name, property } => {
-				let member = if let Some(self_ty) = self_ty {
-					let r#type = if property {
-						match (sig.inputs.len(), &sig.output) {
-							(1, ReturnType::Type(..)) => MemberType::Getter,
-							(2, ReturnType::Default) => MemberType::Setter,
-							_ => {
-								return Err(Error::new(
-									span,
-									"`property` requires a getter or setter signature",
-								));
-							}
-						}
-					} else {
-						MemberType::Method
-					};
+		let binding = match js_output {
+			FunctionJsOutput::Generate {
+				js_name,
+				static_of,
+				operation,
+			} => {
+				if self_ty.is_some() && static_of.is_some() {
+					return Err(Error::new(
+						span,
+						"`static_of` cannot be used with a `self` parameter",
+					));
+				}
 
-					Some(Member { self_ty, r#type })
-				} else {
-					if property {
-						return Err(Error::new(span, "`property` requires `self` parameter"));
+				let operation = match operation {
+					Some(FunctionOperation::Constructor) => JsOperation::Construct,
+					Some(FunctionOperation::Getter) => JsOperation::Getter,
+					Some(FunctionOperation::Setter) => JsOperation::Setter,
+					None => JsOperation::Call,
+				};
+				let target = if matches!(operation, JsOperation::Construct) {
+					if self_ty.is_some() {
+						return Err(Error::new(
+							span,
+							"`constructor` cannot be used with a `self` parameter",
+						));
+					}
+					if static_of.is_some() {
+						return Err(Error::new(
+							span,
+							"`constructor` cannot be combined with `static_of`",
+						));
 					}
 
-					None
+					JsTarget::Static(Self::constructor_owner(&sig.output)?)
+				} else if let Some(static_of) = static_of {
+					JsTarget::Static(static_of)
+				} else if let Some(self_ty) = self_ty {
+					JsTarget::Instance(self_ty)
+				} else {
+					JsTarget::Global
 				};
+				let argument_count =
+					sig.inputs.len() - usize::from(matches!(&target, JsTarget::Instance(_)));
 
-				OutputType::Generate { js_name, member }
+				match operation {
+					JsOperation::Getter
+						if argument_count != 0 || !matches!(&sig.output, ReturnType::Type(..)) =>
+					{
+						return Err(Error::new(
+							span,
+							"`getter` requires no arguments and a return value",
+						));
+					}
+					JsOperation::Setter
+						if argument_count != 1 || !matches!(&sig.output, ReturnType::Default) =>
+					{
+						return Err(Error::new(
+							span,
+							"`setter` requires one argument and no return value",
+						));
+					}
+					_ => {}
+				}
+
+				let js_name = js_name.unwrap_or_else(|| {
+					if matches!(operation, JsOperation::Construct) {
+						Self::target_name(&target)
+					} else {
+						sig.ident.to_string()
+					}
+				});
+
+				JsBinding::Generate(GeneratedBinding {
+					target,
+					operation,
+					js_name,
+				})
 			}
-			FunctionJsOutput::Embed(embed) => OutputType::Embed(embed),
-			FunctionJsOutput::Import => OutputType::Import,
+			FunctionJsOutput::Embed(embed) => JsBinding::Embed(embed),
+			FunctionJsOutput::Import => JsBinding::Import,
 		};
+		let import_name = binding.import_name(namespace, &sig.ident);
+		let foreign_name = format!("{crate_}.{import_name}");
 
 		let output_ty = match &sig.output {
 			ReturnType::Default => None,
 			ReturnType::Type(_, ty) => Some(*ty.clone()),
 		};
 
-		let impl_generic_params = Self::impl_generic_params(&r#type, &mut sig.generics);
+		let impl_generic_params = Self::impl_generic_params(&binding, &mut sig.generics);
 
 		let js_bindgen = hygiene.js_bindgen(outer_attrs, span);
 		let r#macro = hygiene.r#macro(outer_attrs, span);
@@ -392,20 +464,66 @@ impl<'a> State<'a> {
 			inputs,
 			output_ty,
 			impl_generic_params,
-			r#type,
+			binding,
 			span,
 		})
 	}
 
+	fn constructor_owner(output: &ReturnType) -> Result<Path> {
+		let ReturnType::Type(_, output) = output else {
+			return Err(Error::new_spanned(
+				output,
+				"`constructor` requires a return type",
+			));
+		};
+
+		Self::constructor_owner_from_type(output)
+	}
+
+	fn constructor_owner_from_type(output: &Type) -> Result<Path> {
+		let Type::Path(TypePath { qself: None, path }) = output else {
+			return Err(Error::new_spanned(
+				output,
+				"`constructor` requires a path return type",
+			));
+		};
+		let segment = path
+			.segments
+			.last()
+			.expect("a type path always contains a segment");
+
+		if segment.ident == "Result"
+			&& let PathArguments::AngleBracketed(arguments) = &segment.arguments
+			&& let Some(GenericArgument::Type(output)) = arguments.args.first()
+		{
+			return Self::constructor_owner_from_type(output);
+		}
+
+		Ok(path.clone())
+	}
+
+	fn target_name(target: &JsTarget) -> String {
+		let JsTarget::Static(owner) = target else {
+			unreachable!("only static targets have a type name");
+		};
+
+		owner
+			.segments
+			.last()
+			.expect("a type path always contains a segment")
+			.ident
+			.to_string()
+	}
+
 	// Extract type generics from signature that are part of `impl <type>`.
-	fn impl_generic_params(r#type: &OutputType, generics: &mut Generics) -> TokenStream {
-		if let Some(member) = r#type.member() {
+	fn impl_generic_params(binding: &JsBinding, generics: &mut Generics) -> TokenStream {
+		if let Some(owner) = binding.owner() {
 			let mut fn_generic_params: Vec<_> =
 				mem::take(&mut generics.params).into_iter().collect();
 
 			let impl_generic_params: Vec<_> = fn_generic_params
 				.extract_if(.., |param| {
-					for path in &member.self_ty.segments {
+					for path in &owner.segments {
 						if let PathArguments::AngleBracketed(args) = &path.arguments {
 							for arg in &args.args {
 								match (&*param, arg) {
@@ -495,7 +613,7 @@ impl<'a> State<'a> {
 			import_name,
 			inputs,
 			output_ty,
-			r#type,
+			binding,
 			span,
 			..
 		} = self;
@@ -507,30 +625,6 @@ impl<'a> State<'a> {
 			.collect();
 		let output_tys: Vec<_> = output_ty.iter().collect();
 
-		let js_path = match r#type {
-			OutputType::Generate { js_name, member } => {
-				let base = if member.is_some() {
-					input_value_names[0].as_str()
-				} else {
-					"globalThis"
-				};
-
-				if let Some(js_name) = js_name {
-					if let Some(namespace) = self.namespace {
-						format!("{base}.{namespace}.{js_name}")
-					} else {
-						format!("{base}.{js_name}")
-					}
-				} else {
-					format!("{base}.{import_name}")
-				}
-			}
-			OutputType::Embed(name) => {
-				format!("this.#jsEmbed.{crate_}['{name}']")
-			}
-			OutputType::Import => return None,
-		};
-
 		let mut unique_inputs = Vec::new();
 
 		for &ty in &input_tys {
@@ -541,7 +635,7 @@ impl<'a> State<'a> {
 
 		let mut required_embeds = Vec::new();
 
-		if let OutputType::Embed(name) = &r#type {
+		if let JsBinding::Embed(name) = binding {
 			required_embeds.push(quote_spanned!(*span=> (#crate_, #name)));
 		}
 
@@ -561,36 +655,47 @@ impl<'a> State<'a> {
 		};
 
 		let input_names_joined = input_value_names.iter().join(", ");
-		let call_input_names_joined = if r#type.member().is_some() {
-			input_value_names.iter().skip(1).join(", ")
-		} else {
-			input_names_joined.clone()
-		};
 		let js_inputs: Vec<_> = input_names
 			.iter()
 			.zip(input_tys.iter())
 			.map(|(name, ty)| quote_spanned!(*span=> (#name, #ty)))
 			.collect();
-		let direct_fn_open = if r#type.member().is_none() {
-			quote_spanned!(*span=> "")
-		} else {
-			quote_spanned!(*span=>
-				#r#macro::js_function!("(", ") => ", #(#js_inputs),*)
-			)
-		};
-		let direct_js_call = if let Some(member) = r#type.member() {
-			match member.r#type {
-				MemberType::Method => format!("{js_path}({call_input_names_joined})"),
-				MemberType::Getter => js_path.clone(),
-				MemberType::Setter => format!("{js_path} = {call_input_names_joined}"),
+		let (direct_fn_open, direct_js_call, indirect_js_call) = match binding {
+			JsBinding::Generate(binding) => {
+				let call_inputs = if binding.has_receiver() {
+					input_value_names.iter().skip(1).join(", ")
+				} else {
+					input_names_joined.clone()
+				};
+				let expression =
+					binding.expression(self.namespace, &input_value_names, &call_inputs);
+
+				if binding.requires_wrapper(self.namespace) {
+					(
+						quote_spanned!(*span=>
+							#r#macro::js_function!("(", ") => ", #(#js_inputs),*)
+						),
+						expression.clone(),
+						expression,
+					)
+				} else {
+					let path = binding.path(self.namespace, &input_value_names);
+					(
+						quote_spanned!(*span=> ""),
+						path.clone(),
+						format!("{path}({input_names_joined})"),
+					)
+				}
 			}
-		} else {
-			js_path.clone()
-		};
-		let indirect_js_call = if r#type.member().is_some() {
-			direct_js_call.clone()
-		} else {
-			format!("{js_path}({input_names_joined})")
+			JsBinding::Embed(name) => {
+				let path = format!("this.#jsEmbed.{crate_}['{name}']");
+				(
+					quote_spanned!(*span=> ""),
+					path.clone(),
+					format!("{path}({input_names_joined})"),
+				)
+			}
+			JsBinding::Import => return None,
 		};
 		let output = output_ty.iter();
 
@@ -612,12 +717,87 @@ impl<'a> State<'a> {
 	}
 }
 
-impl OutputType {
-	fn member(&self) -> Option<&Member> {
-		if let Self::Generate { member, .. } = self {
-			member.as_ref()
+impl JsBinding {
+	fn owner(&self) -> Option<&Path> {
+		let Self::Generate(binding) = self else {
+			return None;
+		};
+
+		binding.owner()
+	}
+
+	fn import_name(&self, namespace: Option<&str>, rust_name: &Ident) -> String {
+		let name = if let Self::Generate(binding) = self
+			&& matches!(&binding.target, JsTarget::Static(_))
+		{
+			format!("{}.{}", binding.owner_name(), rust_name)
 		} else {
-			None
+			rust_name.to_string()
+		};
+
+		if let Some(namespace) = namespace {
+			format!("{namespace}.{name}")
+		} else {
+			name
+		}
+	}
+}
+
+impl GeneratedBinding {
+	fn owner(&self) -> Option<&Path> {
+		match &self.target {
+			JsTarget::Global => None,
+			JsTarget::Instance(owner) | JsTarget::Static(owner) => Some(owner),
+		}
+	}
+
+	fn owner_name(&self) -> &Ident {
+		self.owner()
+			.and_then(|owner| owner.segments.last())
+			.map(|segment| &segment.ident)
+			.expect("static and instance bindings always have an owner")
+	}
+
+	fn has_receiver(&self) -> bool {
+		matches!(&self.target, JsTarget::Instance(_))
+	}
+
+	fn requires_wrapper(&self, namespace: Option<&str>) -> bool {
+		namespace.is_some()
+			|| !matches!(&self.target, JsTarget::Global)
+			|| !matches!(self.operation, JsOperation::Call)
+	}
+
+	fn path(&self, namespace: Option<&str>, inputs: &[String]) -> String {
+		match &self.target {
+			JsTarget::Global => Self::global_path(namespace, &self.js_name),
+			JsTarget::Instance(_) => format!("{}.{}", inputs[0], self.js_name),
+			JsTarget::Static(_) if matches!(self.operation, JsOperation::Construct) => {
+				Self::global_path(namespace, &self.js_name)
+			}
+			JsTarget::Static(_) => Self::global_path(
+				namespace,
+				&format!("{}.{}", self.owner_name(), self.js_name),
+			),
+		}
+	}
+
+	fn global_path(namespace: Option<&str>, name: &str) -> String {
+		if let Some(namespace) = namespace {
+			format!("globalThis.{namespace}.{name}")
+		} else {
+			format!("globalThis.{name}")
+		}
+	}
+
+	fn expression(&self, namespace: Option<&str>, inputs: &[String], call_inputs: &str) -> String {
+		let path = self.path(namespace, inputs);
+
+		match self.operation {
+			JsOperation::Call => format!("{path}({call_inputs})"),
+			JsOperation::Construct => format!("new {path}({call_inputs})"),
+			JsOperation::Getter => path,
+			JsOperation::Setter => format!("{path} = {call_inputs}"),
 		}
 	}
 }

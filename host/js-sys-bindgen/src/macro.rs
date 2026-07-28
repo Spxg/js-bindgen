@@ -5,7 +5,7 @@ use quote::ToTokens;
 use syn::parse::Parser;
 use syn::{Error, ForeignItem, Item, ItemForeignMod, LitStr, Path, meta};
 
-use crate::{Function, FunctionJsOutput, Hygiene, ImportManager, Type};
+use crate::{Function, FunctionJsOutput, FunctionOperation, Hygiene, ImportManager, Type};
 
 pub fn r#macro(
 	attr: TokenStream,
@@ -115,7 +115,11 @@ pub(crate) fn internal(
 					.extract_if(.., |attr| attr.path().is_ident("js_sys"))
 				{
 					if let Err(e) = attr.parse_nested_meta(|meta| {
-						let FunctionJsOutput::Generate { js_name, property } = &mut js_output
+						let FunctionJsOutput::Generate {
+							js_name,
+							static_of,
+							operation,
+						} = &mut js_output
 						else {
 							return Err(meta.error("found duplicate/incompatible attribute"));
 						};
@@ -125,22 +129,35 @@ pub(crate) fn internal(
 							Ok(())
 						} else if meta.path.is_ident("js_import") {
 							if meta.input.is_empty() {
+								if js_name.is_some() || static_of.is_some() || operation.is_some() {
+									return Err(
+										meta.error("found duplicate/incompatible attribute")
+									);
+								}
 								js_output = FunctionJsOutput::Import;
 								Ok(())
 							} else {
 								Err(meta.error("`js_import` supports no values"))
 							}
 						} else if meta.path.is_ident("js_embed") {
+							if js_name.is_some() || static_of.is_some() || operation.is_some() {
+								return Err(meta.error("found duplicate/incompatible attribute"));
+							}
 							js_output =
 								FunctionJsOutput::Embed(meta.value()?.parse::<LitStr>()?.value());
 							Ok(())
-						} else if meta.path.is_ident("property") {
-							if *property {
-								return Err(meta.error("duplicate attribute"));
+						} else if meta.path.is_ident("static_of") {
+							if static_of.replace(meta.value()?.parse()?).is_some() {
+								Err(meta.error("duplicate attribute"))
+							} else {
+								Ok(())
 							}
-
-							*property = true;
-							Ok(())
+						} else if meta.path.is_ident("constructor") {
+							set_operation(&meta, operation, FunctionOperation::Constructor)
+						} else if meta.path.is_ident("getter") {
+							set_operation(&meta, operation, FunctionOperation::Getter)
+						} else if meta.path.is_ident("setter") {
+							set_operation(&meta, operation, FunctionOperation::Setter)
 						} else {
 							Err(meta.error("unsupported attribute"))
 						}
@@ -185,6 +202,18 @@ pub(crate) fn internal(
 	} else {
 		Ok(output)
 	}
+}
+
+fn set_operation(
+	meta: &meta::ParseNestedMeta<'_>,
+	operation: &mut Option<FunctionOperation>,
+	value: FunctionOperation,
+) -> Result<(), Error> {
+	if operation.replace(value).is_some() {
+		return Err(meta.error("found duplicate/incompatible attribute"));
+	}
+
+	Ok(())
 }
 
 pub(crate) struct ErrorStack(Option<Error>);

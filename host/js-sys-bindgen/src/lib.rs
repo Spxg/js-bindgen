@@ -22,7 +22,7 @@ pub use syn;
 pub use crate::closure::closure;
 #[cfg(feature = "file")]
 pub use crate::file::file;
-pub use crate::function::{Function, FunctionJsOutput};
+pub use crate::function::{Function, FunctionJsOutput, FunctionOperation};
 pub use crate::hygiene::{Hygiene, ImportManager};
 #[cfg(feature = "macro")]
 pub use crate::r#macro::r#macro;

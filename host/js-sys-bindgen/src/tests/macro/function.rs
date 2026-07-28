@@ -77,7 +77,8 @@ fn namespace() {
 					required_embeds = [::js_sys::r#macro::js_input_embed::<&JsValue>()],
 					"{}",
 					interpolate ::js_sys::r#macro::js_import!(
-						direct_open = "", direct_call = "globalThis.console.log", indirect_call =
+						direct_open = ::js_sys::r#macro::js_function!("(", ") => ", ("arg0", &
+						JsValue)), direct_call = "globalThis.console.log(arg0_0)", indirect_call =
 						"globalThis.console.log(arg0_0)", inputs = [("arg0", & JsValue)],
 					),
 				}
@@ -108,7 +109,7 @@ fn namespace() {
 		  table.get $js_sys.import.externref.table (@reloc)
 		  call $test_crate.import.console.log (@reloc)
 		)",
-		"globalThis.console.log",
+		"(arg0_0) => globalThis.console.log(arg0_0)",
 	);
 }
 
