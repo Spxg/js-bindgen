@@ -3,9 +3,10 @@ use core::fmt::{self, Display, Formatter};
 use core::mem::MaybeUninit;
 use core::ptr;
 
+use crate::JsValue;
 use crate::hazard::{IntoJS, IntoJsConv, JsCast};
+use crate::runtime::externref;
 use crate::util::{ExternSlice, PtrConst, PtrLength, PtrMut};
-use crate::{JsValue, externref};
 
 #[crate::js_sys(js_sys = crate)]
 extern "js-sys" {

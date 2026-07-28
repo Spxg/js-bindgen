@@ -264,7 +264,7 @@ impl<T: ?Sized> Closure<T> {
 
 	/// Transfers this closure to JavaScript ownership.
 	///
-	/// When supported by the JavaScript runtime, the captured Rust values are
+	/// When supported by the JavaScript `runtime`, the captured Rust values are
 	/// released after the JavaScript function becomes unreachable. Otherwise,
 	/// the Rust allocation remains alive.
 	#[must_use]

@@ -9,32 +9,24 @@ extern crate alloc;
 
 #[macro_use]
 mod util;
-mod array;
-mod bigint;
-mod closure;
-mod exception;
-mod externref;
+
+// JavaScript standard built-in objects.
+mod builtins;
+// `Runtime` support for Rust and JavaScript `interop`.
+mod runtime;
+
 pub mod hazard;
 // Implementations for passing Rust standard types across the JavaScript
 // boundary.
 mod interop;
 #[doc(hidden)]
 pub mod r#macro;
-mod number;
-mod panic;
-mod string;
-mod value;
 
 pub use js_bindgen;
 pub use js_sys_macro::{closure, js_sys};
 
-pub use crate::array::{JsArray, TryFromJsArrayError};
-pub use crate::bigint::JsBigInt;
-pub use crate::closure::Closure;
-pub use crate::number::JsNumber;
-pub use crate::panic::{UnwrapThrowExt, panic};
-pub use crate::string::JsString;
-pub use crate::value::JsValue;
+pub use crate::builtins::{JsArray, JsBigInt, JsNumber, JsString, TryFromJsArrayError};
+pub use crate::runtime::{Closure, JsValue, UnwrapThrowExt, panic};
 
 #[cfg(not(target_feature = "reference-types"))]
 compile_error!("`js-sys` requires the `reference-types` target feature");

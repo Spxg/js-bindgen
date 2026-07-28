@@ -2,7 +2,7 @@ use core::marker::PhantomData;
 use core::mem::{ManuallyDrop, MaybeUninit};
 use core::slice;
 
-use crate::externref::{
+use super::externref::{
 	WAT_GET_CONV, WAT_INDEX_LOCAL, WAT_INSERT_CONV, WAT_INSERT_IMPORTS, WAT_INSERT_LOCALS,
 	WAT_OPTIONAL_INSERT_CONV, WAT_TABLE_IMPORT, WAT_TAKE_CONV, WAT_TAKE_IMPORTS, release,
 };

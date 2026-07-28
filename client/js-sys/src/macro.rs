@@ -14,7 +14,7 @@ pub use text::*;
 pub use wat::*;
 
 // Closure macro runtime.
-pub use crate::closure::{ClosureAllocation, ClosureHeader};
+pub use crate::runtime::closure::{ClosureAllocation, ClosureHeader};
 // Text rendering.
 pub use crate::{const_concat, const_concat_if, const_integer_str, js_template};
 // JavaScript export shims.
