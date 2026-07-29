@@ -67,6 +67,18 @@ impl Hygiene<'_> {
 		}
 	}
 
+	pub(crate) fn deref(&mut self, attrs: &[Attribute], span: Span) -> Path {
+		match self {
+			Hygiene::Imports(imports) => {
+				imports.deref.insert(attrs.to_vec());
+				parse_quote_spanned!(span=> Deref)
+			}
+			Hygiene::Hygiene { .. } => {
+				parse_quote_spanned!(span=> ::core::ops::Deref)
+			}
+		}
+	}
+
 	pub(crate) fn phantom_data(&mut self, attrs: &[Attribute], span: Span) -> Path {
 		match self {
 			Hygiene::Imports(imports) => {

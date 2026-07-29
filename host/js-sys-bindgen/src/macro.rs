@@ -122,6 +122,7 @@ pub(crate) fn internal(
 							js_name,
 							static_of,
 							operation,
+							variadic,
 						} = &mut js_output
 						else {
 							return Err(meta.error("found duplicate/incompatible attribute"));
@@ -130,9 +131,22 @@ pub(crate) fn internal(
 						if meta.path.is_ident("js_name") {
 							*js_name = Some(meta.value()?.parse::<LitStr>()?.value());
 							Ok(())
+						} else if meta.path.is_ident("variadic") {
+							if !meta.input.is_empty() {
+								Err(meta.error("`variadic` supports no values"))
+							} else if *variadic {
+								Err(meta.error("duplicate attribute"))
+							} else {
+								*variadic = true;
+								Ok(())
+							}
 						} else if meta.path.is_ident("js_import") {
 							if meta.input.is_empty() {
-								if js_name.is_some() || static_of.is_some() || operation.is_some() {
+								let incompatible = js_name.is_some()
+									|| static_of.is_some() || operation.is_some()
+									|| *variadic;
+
+								if incompatible {
 									return Err(
 										meta.error("found duplicate/incompatible attribute")
 									);
@@ -143,7 +157,11 @@ pub(crate) fn internal(
 								Err(meta.error("`js_import` supports no values"))
 							}
 						} else if meta.path.is_ident("js_embed") {
-							if js_name.is_some() || static_of.is_some() || operation.is_some() {
+							let incompatible = js_name.is_some()
+								|| static_of.is_some() || operation.is_some()
+								|| *variadic;
+
+							if incompatible {
 								return Err(meta.error("found duplicate/incompatible attribute"));
 							}
 							js_output =
@@ -185,15 +203,25 @@ pub(crate) fn internal(
 				}
 			}
 			ForeignItem::Type(mut item) => {
-				if let Some(attr) = item
+				let mut extends = Vec::new();
+
+				for attr in item
 					.attrs
 					.extract_if(.., |attr| attr.path().is_ident("js_sys"))
-					.next()
 				{
-					error.push(Error::new_spanned(attr, "unsupported attribute"));
+					if let Err(e) = attr.parse_nested_meta(|meta| {
+						if meta.path.is_ident("extends") {
+							extends.push(meta.value()?.parse()?);
+							Ok(())
+						} else {
+							Err(meta.error("unsupported attribute"))
+						}
+					}) {
+						error.push(e);
+					}
 				}
 
-				for item in Type::new(&mut hygiene, item) {
+				for item in Type::with_extends(&mut hygiene, item, &extends) {
 					output.push(&item);
 				}
 			}

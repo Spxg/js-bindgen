@@ -1,3 +1,24 @@
+fn generated_js(input: syn::ItemForeignMod) -> String {
+	let output = crate::r#macro::internal(
+		proc_macro2::TokenStream::new(),
+		input,
+		Some("test_crate"),
+		None,
+	)
+	.unwrap()
+	.into_items()
+	.unwrap();
+	let output = prettyplease::unparse(&syn::File {
+		shebang: None,
+		attrs: Vec::new(),
+		items: output,
+	});
+
+	let dir = tempfile::tempdir().unwrap();
+	let (_, js, _) = super::inner(dir.path(), &output).unwrap();
+	js.unwrap()
+}
+
 #[test]
 fn method() {
 	test!(
@@ -175,6 +196,38 @@ fn method_par() {
 		  call $test_crate.import.JsTest.test (@reloc)
 		)",
 		"(arg0_0, arg1_0, arg2_0) => arg0_0.test(arg1_0, arg2_0)",
+	);
+}
+
+#[test]
+fn variadic() {
+	let input = syn::parse_quote! {
+		extern "js-sys" {
+			#[js_sys(variadic)]
+			pub fn push(self: &JsTest, first: &JsValue, rest: &[JsValue]);
+		}
+	};
+
+	assert_eq!(
+		generated_js(input),
+		"(arg0_0, arg1_0, arg2_0, arg2_1) => {\n    \
+		 arg2_0 = this.#jsEmbed.js_sys['array.js_value.decode'](arg2_0, arg2_1)\n\
+		 arg0_0.push(arg1_0, ...arg2_0)\n}"
+	);
+}
+
+#[test]
+fn global_variadic() {
+	let input = syn::parse_quote! {
+		extern "js-sys" {
+			#[js_sys(variadic)]
+			pub fn call(values: &JsArray);
+		}
+	};
+
+	assert_eq!(
+		generated_js(input),
+		"(arg0_0) => globalThis.call(...arg0_0)"
 	);
 }
 

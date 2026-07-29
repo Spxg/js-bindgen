@@ -34,6 +34,7 @@ pub enum FunctionJsOutput {
 		js_name: Option<String>,
 		static_of: Option<Path>,
 		operation: Option<FunctionOperation>,
+		variadic: bool,
 	},
 	Embed(String),
 	Import,
@@ -75,6 +76,8 @@ enum JsBinding {
 
 struct GeneratedBinding {
 	target: JsTarget,
+	#[cfg(feature = "macro")]
+	variadic: bool,
 	#[cfg(feature = "macro")]
 	operation: JsOperation,
 	#[cfg(feature = "macro")]
@@ -280,6 +283,7 @@ impl Default for FunctionJsOutput {
 			js_name: None,
 			static_of: None,
 			operation: None,
+			variadic: false,
 		}
 	}
 }
@@ -378,6 +382,7 @@ impl State {
 				js_name,
 				static_of,
 				operation,
+				variadic,
 			} => {
 				if self_ty.is_some() && static_of.is_some() {
 					return Err(Error::new(
@@ -417,6 +422,19 @@ impl State {
 				let argument_count =
 					sig.inputs.len() - usize::from(matches!(&target, JsTarget::Instance(_)));
 
+				if variadic && argument_count == 0 {
+					return Err(Error::new(
+						span,
+						"`variadic` requires at least one argument",
+					));
+				}
+				if variadic && !matches!(operation, JsOperation::Call | JsOperation::Construct) {
+					return Err(Error::new(
+						span,
+						"`variadic` cannot be combined with a property operation",
+					));
+				}
+
 				match operation {
 					JsOperation::Getter
 						if argument_count != 0 || !matches!(&sig.output, ReturnType::Type(..)) =>
@@ -450,6 +468,8 @@ impl State {
 
 				JsBinding::Generate(GeneratedBinding {
 					target,
+					#[cfg(feature = "macro")]
+					variadic,
 					#[cfg(feature = "macro")]
 					operation,
 					#[cfg(feature = "macro")]
@@ -643,12 +663,7 @@ impl State {
 		let input_names_joined = input_value_names.iter().join(", ");
 		let js = match binding {
 			JsBinding::Generate(binding) => {
-				let call_inputs = if binding.has_receiver() {
-					input_value_names.iter().skip(1).join(", ")
-				} else {
-					input_names_joined.clone()
-				};
-				let expression = binding.expression(namespace, &input_value_names, &call_inputs);
+				let expression = binding.expression(namespace, &input_value_names);
 
 				let (direct_wrapper, direct_call, indirect_call) =
 					if binding.requires_wrapper(namespace) {
@@ -766,6 +781,7 @@ impl GeneratedBinding {
 		namespace.is_some()
 			|| !matches!(&self.target, JsTarget::Global)
 			|| !matches!(self.operation, JsOperation::Call)
+			|| self.variadic
 	}
 
 	#[cfg(feature = "macro")]
@@ -793,8 +809,26 @@ impl GeneratedBinding {
 	}
 
 	#[cfg(feature = "macro")]
-	fn expression(&self, namespace: Option<&str>, inputs: &[String], call_inputs: &str) -> String {
+	fn expression(&self, namespace: Option<&str>, inputs: &[String]) -> String {
 		let path = self.path(namespace, inputs);
+		let inputs = if self.has_receiver() {
+			&inputs[1..]
+		} else {
+			inputs
+		};
+		let call_inputs = if self.variadic {
+			let (last, inputs) = inputs
+				.split_last()
+				.expect("variadic bindings always have an argument");
+
+			if inputs.is_empty() {
+				format!("...{last}")
+			} else {
+				format!("{}, ...{last}", inputs.iter().join(", "))
+			}
+		} else {
+			inputs.iter().join(", ")
+		};
 
 		match self.operation {
 			JsOperation::Call => format!("{path}({call_inputs})"),

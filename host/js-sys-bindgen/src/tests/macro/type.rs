@@ -166,3 +166,43 @@ fn r#trait() {
 		None,
 	);
 }
+
+#[test]
+fn extends() {
+	let input = syn::parse_quote! {
+		extern "js-sys" {
+			#[js_sys(extends = JsTest)]
+			#[js_sys(extends = JsArray)]
+			pub type Child;
+		}
+	};
+	let output = crate::r#macro::internal(
+		proc_macro2::TokenStream::new(),
+		input,
+		Some("test_crate"),
+		None,
+	)
+	.unwrap()
+	.into_items()
+	.unwrap();
+	let mut output = prettyplease::unparse(&syn::File {
+		shebang: None,
+		attrs: Vec::new(),
+		items: output,
+	});
+	output.push_str(
+		r"
+fn assert_extends(value: &Child) {
+	let _: &JsTest = value;
+	let _: &JsArray = ::core::convert::AsRef::<JsArray>::as_ref(value);
+}
+
+fn into_parent(value: Child) -> JsArray {
+	value.into()
+}
+",
+	);
+
+	let dir = tempfile::tempdir().unwrap();
+	super::inner(dir.path(), &output).unwrap();
+}

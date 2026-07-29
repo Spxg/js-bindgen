@@ -1,20 +1,27 @@
-use std::array;
-
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote_spanned};
 use syn::spanned::Spanned;
-use syn::{Fields, ForeignItemType, Item, ItemImpl, ItemStruct, Token, parse_quote_spanned};
+use syn::{Fields, ForeignItemType, Item, ItemImpl, ItemStruct, Path, Token, parse_quote_spanned};
 
 use crate::Hygiene;
 
 pub struct Type {
 	pub r#struct: ItemStruct,
-	pub impls: [ItemImpl; 4],
+	pub impls: Vec<ItemImpl>,
 }
 
 impl Type {
 	#[must_use]
 	pub fn new(hygiene: &mut Hygiene<'_>, item: ForeignItemType) -> Self {
+		Self::with_extends(hygiene, item, &[])
+	}
+
+	#[must_use]
+	pub fn with_extends(
+		hygiene: &mut Hygiene<'_>,
+		item: ForeignItemType,
+		extends: &[Path],
+	) -> Self {
 		let span = item.span();
 		let ForeignItemType {
 			attrs,
@@ -58,7 +65,7 @@ impl Type {
 			)
 		};
 
-		let impls = [
+		let mut impls = vec![
 			parse_quote_spanned! {span=>
 				#(#cfgs)*
 				impl #gen_impl #as_ref<#js_value> for #ident #gen_type #gen_where {
@@ -91,6 +98,45 @@ impl Type {
 			},
 		];
 
+		if let Some(parent) = extends.first() {
+			let deref = hygiene.deref(&cfgs, span);
+
+			impls.push(parse_quote_spanned! {span=>
+				#(#cfgs)*
+				impl #gen_impl #deref for #ident #gen_type #gen_where {
+					type Target = #parent;
+
+					#[inline]
+					fn deref(&self) -> &Self::Target {
+						<#ident #gen_type as #as_ref<#parent>>::as_ref(self)
+					}
+				}
+			});
+		}
+
+		for parent in extends {
+			impls.push(parse_quote_spanned! {span=>
+				#(#cfgs)*
+				impl #gen_impl #as_ref<#parent> for #ident #gen_type #gen_where {
+					#[inline]
+					fn as_ref(&self) -> &#parent {
+						<#parent as #js_cast>::unchecked_from_ref(
+							<#ident #gen_type as #as_ref<#js_value>>::as_ref(self),
+						)
+					}
+				}
+			});
+			impls.push(parse_quote_spanned! {span=>
+				#(#cfgs)*
+				impl #gen_impl #from<#ident #gen_type> for #parent #gen_where {
+					#[inline]
+					fn from(value: #ident #gen_type) -> Self {
+						<#parent as #js_cast>::unchecked_from(#js_value::from(value))
+					}
+				}
+			});
+		}
+
 		item_attrs.append(&mut cfgs);
 		item_attrs.push(parse_quote_spanned! {span=>#[repr(transparent)]});
 
@@ -110,18 +156,13 @@ impl Type {
 
 impl IntoIterator for Type {
 	type Item = Item;
-	type IntoIter = array::IntoIter<Item, 5>;
+	type IntoIter = std::vec::IntoIter<Item>;
 
 	fn into_iter(self) -> Self::IntoIter {
-		let [impl_1, impl_2, impl_3, impl_4] = self.impls;
-		[
-			Item::from(self.r#struct),
-			impl_1.into(),
-			impl_2.into(),
-			impl_3.into(),
-			impl_4.into(),
-		]
-		.into_iter()
+		let mut items = Vec::with_capacity(self.impls.len() + 1);
+		items.push(Item::from(self.r#struct));
+		items.extend(self.impls.into_iter().map(Item::from));
+		items.into_iter()
 	}
 }
 
