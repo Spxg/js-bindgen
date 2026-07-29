@@ -10,24 +10,8 @@ fn method() {
 		{
 			impl JsTest {
 				pub fn test(self: &JsTest) {
-					::js_sys::js_bindgen::unsafe_global_wat! {
-						"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "test",
-						shim = "test_crate.test", inputs = [("arg0", & ::js_sys::JsValue)],),
-					}
-
-					::js_sys::js_bindgen::import_js! {
-						module = "test_crate",
-						name = "test",
-						required_embeds = [::js_sys::r#macro::js_input_embed::<&::js_sys::JsValue>()],
-						"{}",
-						interpolate ::js_sys::r#macro::js_import!(
-							direct_wrapper = true, direct_call = "arg0_0.test()", indirect_call =
-							"arg0_0.test()", inputs = [("arg0", & ::js_sys::JsValue)],
-						),
-					}
-
 					unsafe extern "C" {
-						#[link_name = "test_crate.test"]
+						#[link_name = "test_crate.JsTest.test"]
 						fn test(
 							arg0_0: ::js_sys::r#macro::InputSlot1<&::js_sys::JsValue>,
 							arg0_1: ::js_sys::r#macro::InputSlot2<&::js_sys::JsValue>,
@@ -44,15 +28,49 @@ fn method() {
 					};
 				}
 			}
+			const _: () = {
+				fn import_sections() {
+					const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
+						&[::js_sys::r#macro::ImportDescriptor::new(
+							"test_crate",
+							"JsTest.test",
+							"test_crate.JsTest.test",
+							&[::js_sys::r#macro::import_input::<&::js_sys::JsValue>(
+								"arg0",
+							)],
+							::core::option::Option::None,
+							::core::option::Option::Some(::js_sys::r#macro::ImportJs {
+								direct_wrapper: true,
+								direct_call: "arg0_0.test()",
+								indirect_call: "arg0_0.test()",
+								required_embeds: &[::js_sys::r#macro::js_input_embed::<
+									&::js_sys::JsValue,
+								>()],
+							}),
+						)];
+					const WAT_CAPACITY: ::core::primitive::usize =
+						::js_sys::r#macro::import_wat_batch_capacity(IMPORTS);
+					#[used]
+					#[unsafe(link_section = "js_bindgen.wat")]
+					static WAT_SECTION: ::js_sys::r#macro::ImportBatchSection<WAT_CAPACITY> =
+						::js_sys::r#macro::import_wat_batch::<WAT_CAPACITY>(IMPORTS);
+					const JS_CAPACITY: ::core::primitive::usize =
+						::js_sys::r#macro::import_js_batch_capacity(IMPORTS);
+					#[used]
+					#[unsafe(link_section = "js_bindgen.import")]
+					static JS_SECTION: ::js_sys::r#macro::ImportBatchSection<JS_CAPACITY> =
+						::js_sys::r#macro::import_js_batch::<JS_CAPACITY>(IMPORTS);
+				}
+			};
 		},
-		"(import \"test_crate\" \"test\" (func $test_crate.import.test (@sym (name \
-		 \"test_crate.import.test\")) (param externref)))
+		"(import \"test_crate\" \"JsTest.test\" (func $test_crate.import.JsTest.test (@sym (name \
+		 \"test_crate.import.JsTest.test\")) (param externref)))
 		(import \"js_sys\" \"externref.table\" (table $js_sys.import.externref.table (@sym (name \
 		 \"js_sys.externref.table\")) 2 externref))
-		(func $test_crate.test (@sym) (param $arg0_0 i32)
+		(func $test_crate.JsTest.test (@sym) (param $arg0_0 i32)
 		  local.get $arg0_0
 		  table.get $js_sys.import.externref.table (@reloc)
-		  call $test_crate.import.test (@reloc)
+		  call $test_crate.import.JsTest.test (@reloc)
 		)",
 		"(arg0_0) => arg0_0.test()",
 	);
@@ -70,29 +88,8 @@ fn method_par() {
 		{
 			impl JsTest {
 				pub fn test(self: &JsTest, par1: &JsValue, par2: &JsValue) {
-					::js_sys::js_bindgen::unsafe_global_wat! {
-						"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "test",
-						shim = "test_crate.test", inputs = [("arg0", & ::js_sys::JsValue), ("arg1", & JsValue),
-						("arg2", & JsValue)],),
-					}
-
-					::js_sys::js_bindgen::import_js! {
-						module = "test_crate",
-						name = "test",
-						required_embeds = [
-							::js_sys::r#macro::js_input_embed::<&::js_sys::JsValue>(),
-							::js_sys::r#macro::js_input_embed::<&JsValue>(),
-						],
-						"{}",
-						interpolate ::js_sys::r#macro::js_import!(
-							direct_wrapper = true, direct_call = "arg0_0.test(arg1_0, arg2_0)", indirect_call =
-							"arg0_0.test(arg1_0, arg2_0)", inputs = [("arg0", & ::js_sys::JsValue), ("arg1", &
-							JsValue), ("arg2", & JsValue)],
-						),
-					}
-
 					unsafe extern "C" {
-						#[link_name = "test_crate.test"]
+						#[link_name = "test_crate.JsTest.test"]
 						fn test(
 							arg0_0: ::js_sys::r#macro::InputSlot1<&::js_sys::JsValue>,
 							arg0_1: ::js_sys::r#macro::InputSlot2<&::js_sys::JsValue>,
@@ -126,19 +123,56 @@ fn method_par() {
 					};
 				}
 			}
+			const _: () = {
+				fn import_sections() {
+					const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
+						&[::js_sys::r#macro::ImportDescriptor::new(
+							"test_crate",
+							"JsTest.test",
+							"test_crate.JsTest.test",
+							&[
+								::js_sys::r#macro::import_input::<&::js_sys::JsValue>("arg0"),
+								::js_sys::r#macro::import_input::<&JsValue>("arg1"),
+								::js_sys::r#macro::import_input::<&JsValue>("arg2"),
+							],
+							::core::option::Option::None,
+							::core::option::Option::Some(::js_sys::r#macro::ImportJs {
+								direct_wrapper: true,
+								direct_call: "arg0_0.test(arg1_0, arg2_0)",
+								indirect_call: "arg0_0.test(arg1_0, arg2_0)",
+								required_embeds: &[
+									::js_sys::r#macro::js_input_embed::<&::js_sys::JsValue>(),
+									::js_sys::r#macro::js_input_embed::<&JsValue>(),
+								],
+							}),
+						)];
+					const WAT_CAPACITY: ::core::primitive::usize =
+						::js_sys::r#macro::import_wat_batch_capacity(IMPORTS);
+					#[used]
+					#[unsafe(link_section = "js_bindgen.wat")]
+					static WAT_SECTION: ::js_sys::r#macro::ImportBatchSection<WAT_CAPACITY> =
+						::js_sys::r#macro::import_wat_batch::<WAT_CAPACITY>(IMPORTS);
+					const JS_CAPACITY: ::core::primitive::usize =
+						::js_sys::r#macro::import_js_batch_capacity(IMPORTS);
+					#[used]
+					#[unsafe(link_section = "js_bindgen.import")]
+					static JS_SECTION: ::js_sys::r#macro::ImportBatchSection<JS_CAPACITY> =
+						::js_sys::r#macro::import_js_batch::<JS_CAPACITY>(IMPORTS);
+				}
+			};
 		},
-		"(import \"test_crate\" \"test\" (func $test_crate.import.test (@sym (name \
-		 \"test_crate.import.test\")) (param externref externref externref)))
+		"(import \"test_crate\" \"JsTest.test\" (func $test_crate.import.JsTest.test (@sym (name \
+		 \"test_crate.import.JsTest.test\")) (param externref externref externref)))
 		(import \"js_sys\" \"externref.table\" (table $js_sys.import.externref.table (@sym (name \
 		 \"js_sys.externref.table\")) 2 externref))
-		(func $test_crate.test (@sym) (param $arg0_0 i32) (param $arg1_0 i32) (param $arg2_0 i32)
+		(func $test_crate.JsTest.test (@sym) (param $arg0_0 i32) (param $arg1_0 i32) (param $arg2_0 i32)
 		  local.get $arg0_0
 		  table.get $js_sys.import.externref.table (@reloc)
 		  local.get $arg1_0
 		  table.get $js_sys.import.externref.table (@reloc)
 		  local.get $arg2_0
 		  table.get $js_sys.import.externref.table (@reloc)
-		  call $test_crate.import.test (@reloc)
+		  call $test_crate.import.JsTest.test (@reloc)
 		)",
 		"(arg0_0, arg1_0, arg2_0) => arg0_0.test(arg1_0, arg2_0)",
 	);
@@ -157,28 +191,8 @@ fn getter() {
 		{
 			impl JsTest {
 				pub fn test(self: &JsTest) -> JsValue {
-					::js_sys::js_bindgen::unsafe_global_wat! {
-						"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "test",
-						shim = "test_crate.test", inputs = [("arg0", & ::js_sys::JsValue)], output = JsValue,),
-					}
-
-					::js_sys::js_bindgen::import_js! {
-						module = "test_crate",
-						name = "test",
-						required_embeds = [
-							::js_sys::r#macro::js_input_embed::<&::js_sys::JsValue>(),
-							::js_sys::r#macro::js_output_embed::<JsValue>(),
-							::js_sys::r#macro::js_result_embed::<JsValue>(),
-						],
-						"{}",
-						interpolate ::js_sys::r#macro::js_import!(
-							direct_wrapper = true, direct_call = "arg0_0.test", indirect_call = "arg0_0.test",
-							inputs = [("arg0", & ::js_sys::JsValue)], output = JsValue,
-						),
-					}
-
 					unsafe extern "C" {
-						#[link_name = "test_crate.test"]
+						#[link_name = "test_crate.JsTest.test"]
 						fn test(
 							arg0_0: ::js_sys::r#macro::InputSlot1<&::js_sys::JsValue>,
 							arg0_1: ::js_sys::r#macro::InputSlot2<&::js_sys::JsValue>,
@@ -195,18 +209,56 @@ fn getter() {
 					})
 				}
 			}
+			const _: () = {
+				fn import_sections() {
+					const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
+						&[::js_sys::r#macro::ImportDescriptor::new(
+							"test_crate",
+							"JsTest.test",
+							"test_crate.JsTest.test",
+							&[::js_sys::r#macro::import_input::<&::js_sys::JsValue>(
+								"arg0",
+							)],
+							::core::option::Option::Some(
+								::js_sys::r#macro::import_output::<JsValue>(),
+							),
+							::core::option::Option::Some(::js_sys::r#macro::ImportJs {
+								direct_wrapper: true,
+								direct_call: "arg0_0.test",
+								indirect_call: "arg0_0.test",
+								required_embeds: &[
+									::js_sys::r#macro::js_input_embed::<&::js_sys::JsValue>(),
+									::js_sys::r#macro::js_output_embed::<JsValue>(),
+									::js_sys::r#macro::js_result_embed::<JsValue>(),
+								],
+							}),
+						)];
+					const WAT_CAPACITY: ::core::primitive::usize =
+						::js_sys::r#macro::import_wat_batch_capacity(IMPORTS);
+					#[used]
+					#[unsafe(link_section = "js_bindgen.wat")]
+					static WAT_SECTION: ::js_sys::r#macro::ImportBatchSection<WAT_CAPACITY> =
+						::js_sys::r#macro::import_wat_batch::<WAT_CAPACITY>(IMPORTS);
+					const JS_CAPACITY: ::core::primitive::usize =
+						::js_sys::r#macro::import_js_batch_capacity(IMPORTS);
+					#[used]
+					#[unsafe(link_section = "js_bindgen.import")]
+					static JS_SECTION: ::js_sys::r#macro::ImportBatchSection<JS_CAPACITY> =
+						::js_sys::r#macro::import_js_batch::<JS_CAPACITY>(IMPORTS);
+				}
+			};
 		},
-		"(import \"test_crate\" \"test\" (func $test_crate.import.test (@sym (name \
-		 \"test_crate.import.test\")) (param externref) (result externref)))
+		"(import \"test_crate\" \"JsTest.test\" (func $test_crate.import.JsTest.test (@sym (name \
+		 \"test_crate.import.JsTest.test\")) (param externref) (result externref)))
 		(import \"js_sys\" \"externref.table\" (table $js_sys.import.externref.table (@sym (name \
 		 \"js_sys.externref.table\")) 2 externref))
 		(import \"env\" \"js_sys.externref.next\" (func $js_sys.externref.next (@sym) (result i32)))
-		(func $test_crate.test (@sym) (param $arg0_0 i32) (result i32)
+		(func $test_crate.JsTest.test (@sym) (param $arg0_0 i32) (result i32)
 		  (local $js_sys.externref.value externref)
 		  (local $js_sys.externref.index i32)
 		  local.get $arg0_0
 		  table.get $js_sys.import.externref.table (@reloc)
-		  call $test_crate.import.test (@reloc)
+		  call $test_crate.import.JsTest.test (@reloc)
 		  local.set $js_sys.externref.value
 		  call $js_sys.externref.next (@reloc)
 		  local.tee $js_sys.externref.index
@@ -231,29 +283,8 @@ fn setter() {
 		{
 			impl JsTest {
 				pub fn test(self: &JsTest, value: &JsValue) {
-					::js_sys::js_bindgen::unsafe_global_wat! {
-						"{}", interpolate::js_sys::r#macro::wat_import!(module = "test_crate", import = "test",
-						shim = "test_crate.test", inputs = [("arg0", & ::js_sys::JsValue), ("arg1", &
-						JsValue)],),
-					}
-
-					::js_sys::js_bindgen::import_js! {
-						module = "test_crate",
-						name = "test",
-						required_embeds = [
-							::js_sys::r#macro::js_input_embed::<&::js_sys::JsValue>(),
-							::js_sys::r#macro::js_input_embed::<&JsValue>(),
-						],
-						"{}",
-						interpolate ::js_sys::r#macro::js_import!(
-							direct_wrapper = true, direct_call = "arg0_0.test = arg1_0", indirect_call =
-							"arg0_0.test = arg1_0", inputs = [("arg0", & ::js_sys::JsValue), ("arg1", &
-							JsValue)],
-						),
-					}
-
 					unsafe extern "C" {
-						#[link_name = "test_crate.test"]
+						#[link_name = "test_crate.JsTest.test"]
 						fn test(
 							arg0_0: ::js_sys::r#macro::InputSlot1<&::js_sys::JsValue>,
 							arg0_1: ::js_sys::r#macro::InputSlot2<&::js_sys::JsValue>,
@@ -280,17 +311,53 @@ fn setter() {
 					};
 				}
 			}
+			const _: () = {
+				fn import_sections() {
+					const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
+						&[::js_sys::r#macro::ImportDescriptor::new(
+							"test_crate",
+							"JsTest.test",
+							"test_crate.JsTest.test",
+							&[
+								::js_sys::r#macro::import_input::<&::js_sys::JsValue>("arg0"),
+								::js_sys::r#macro::import_input::<&JsValue>("arg1"),
+							],
+							::core::option::Option::None,
+							::core::option::Option::Some(::js_sys::r#macro::ImportJs {
+								direct_wrapper: true,
+								direct_call: "arg0_0.test = arg1_0",
+								indirect_call: "arg0_0.test = arg1_0",
+								required_embeds: &[
+									::js_sys::r#macro::js_input_embed::<&::js_sys::JsValue>(),
+									::js_sys::r#macro::js_input_embed::<&JsValue>(),
+								],
+							}),
+						)];
+					const WAT_CAPACITY: ::core::primitive::usize =
+						::js_sys::r#macro::import_wat_batch_capacity(IMPORTS);
+					#[used]
+					#[unsafe(link_section = "js_bindgen.wat")]
+					static WAT_SECTION: ::js_sys::r#macro::ImportBatchSection<WAT_CAPACITY> =
+						::js_sys::r#macro::import_wat_batch::<WAT_CAPACITY>(IMPORTS);
+					const JS_CAPACITY: ::core::primitive::usize =
+						::js_sys::r#macro::import_js_batch_capacity(IMPORTS);
+					#[used]
+					#[unsafe(link_section = "js_bindgen.import")]
+					static JS_SECTION: ::js_sys::r#macro::ImportBatchSection<JS_CAPACITY> =
+						::js_sys::r#macro::import_js_batch::<JS_CAPACITY>(IMPORTS);
+				}
+			};
 		},
-		"(import \"test_crate\" \"test\" (func $test_crate.import.test (@sym (name \
-		 \"test_crate.import.test\")) (param externref externref)))
+		"(import \"test_crate\" \"JsTest.test\" (func $test_crate.import.JsTest.test (@sym (name \
+		 \"test_crate.import.JsTest.test\")) (param externref externref)))
 		(import \"js_sys\" \"externref.table\" (table $js_sys.import.externref.table (@sym (name \
 		 \"js_sys.externref.table\")) 2 externref))
-		(func $test_crate.test (@sym) (param $arg0_0 i32) (param $arg1_0 i32)
+		(func $test_crate.JsTest.test (@sym) (param $arg0_0 i32) (param $arg1_0 i32)
 		  local.get $arg0_0
 		  table.get $js_sys.import.externref.table (@reloc)
 		  local.get $arg1_0
 		  table.get $js_sys.import.externref.table (@reloc)
-		  call $test_crate.import.test (@reloc)
+		  call $test_crate.import.JsTest.test (@reloc)
 		)",
 		"(arg0_0, arg1_0) => arg0_0.test = arg1_0",
 	);

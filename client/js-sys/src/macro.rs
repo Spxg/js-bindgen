@@ -1,5 +1,6 @@
 mod abi;
 mod export;
+mod import;
 mod js_import;
 mod result;
 mod text;
@@ -9,6 +10,7 @@ mod wat_import;
 pub use alloc::boxed::Box;
 
 pub use abi::*;
+pub use import::*;
 pub use result::*;
 pub use text::*;
 pub use wat::*;

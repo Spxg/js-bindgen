@@ -2,21 +2,31 @@ use std::mem;
 use std::ops::DerefMut;
 use std::string::ToString;
 
+#[cfg(feature = "macro")]
 use itertools::Itertools;
 use proc_macro2::{Span, TokenStream};
 use quote::{ToTokens, quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{
 	Attribute, Error, FnArg, ForeignItemFn, GenericArgument, GenericParam, Generics, Ident, Item,
-	ItemFn, ItemImpl, Pat, PatIdent, PatType, Path, PathArguments, Receiver, Result, ReturnType,
-	Signature, Stmt, Token, Type, TypePath, TypeReference, parse_quote, parse_quote_spanned,
+	Pat, PatIdent, PatType, Path, PathArguments, Receiver, Result, ReturnType, Signature, Token,
+	Type, TypePath, TypeReference, parse_quote,
 };
 
 use crate::Hygiene;
 
-pub enum Function {
-	Fn(ItemFn),
-	Impl(ItemImpl),
+pub struct Function {
+	item: TokenStream,
+	#[cfg(feature = "macro")]
+	import: FunctionImport,
+}
+
+#[cfg(feature = "macro")]
+pub(crate) struct FunctionImport {
+	pub(crate) attrs: Vec<Attribute>,
+	pub(crate) descriptor: TokenStream,
+	pub(crate) has_js: bool,
+	pub(crate) r#macro: Path,
 }
 
 pub enum FunctionJsOutput {
@@ -36,23 +46,19 @@ pub enum FunctionOperation {
 	Setter,
 }
 
-struct State<'a> {
-	crate_: &'a str,
-	namespace: Option<&'a str>,
-	js_bindgen: Path,
+struct State {
 	r#macro: Path,
-	import_name: String,
 	foreign_name: String,
 	inputs: Vec<InputArg>,
 	output_ty: Option<Type>,
 	impl_generic_params: TokenStream,
 	binding: JsBinding,
-	span: Span,
 }
 
 struct InputArg {
 	abi_type: Type,
 	rust_name: Ident,
+	#[cfg(feature = "macro")]
 	wat_name: syn::LitStr,
 	slot_names: [Ident; 4],
 	type_override: bool,
@@ -60,13 +66,18 @@ struct InputArg {
 
 enum JsBinding {
 	Generate(GeneratedBinding),
+	#[cfg(feature = "macro")]
 	Embed(String),
+	#[cfg(not(feature = "macro"))]
+	Embed,
 	Import,
 }
 
 struct GeneratedBinding {
 	target: JsTarget,
+	#[cfg(feature = "macro")]
 	operation: JsOperation,
+	#[cfg(feature = "macro")]
 	js_name: String,
 }
 
@@ -93,6 +104,7 @@ impl InputArg {
 		Self {
 			abi_type,
 			rust_name,
+			#[cfg(feature = "macro")]
 			wat_name: syn::LitStr::new(&base, span),
 			slot_names: [slot_name(0), slot_name(1), slot_name(2), slot_name(3)],
 			type_override,
@@ -154,8 +166,8 @@ impl Function {
 			&mut sig,
 			span,
 		)?;
-		let wat = state.wat();
-		let js = state.js();
+		#[cfg(feature = "macro")]
+		let import = state.import_descriptor(crate_, namespace, &sig.ident, &outer_attrs, span);
 		let State {
 			r#macro,
 			foreign_name,
@@ -215,13 +227,9 @@ impl Function {
 			quote_spanned!(span=> #foreign_call;)
 		};
 
-		let item_fn = parse_quote_spanned! {span=>
+		let item_fn = quote_spanned! {span=>
 			#(#attrs)*
 			#vis #sig {
-				#wat
-
-				#js
-
 				unsafe extern "C" {
 					#[link_name = #foreign_name]
 					fn #ident(#(#foreign_input_names: #foreign_input_tys),*) #foreign_output;
@@ -231,33 +239,38 @@ impl Function {
 			}
 		};
 
-		if let Some(owner) = binding.owner() {
-			Ok(Self::Impl(parse_quote_spanned! {span=>
+		let item = if let Some(owner) = binding.owner() {
+			quote_spanned! {span=>
 				impl #impl_generic_params #owner {
 					#item_fn
 				}
-			}))
+			}
 		} else {
-			Ok(Self::Fn(item_fn))
-		}
+			item_fn
+		};
+
+		Ok(Self {
+			item,
+			#[cfg(feature = "macro")]
+			import,
+		})
+	}
+
+	#[cfg(feature = "macro")]
+	pub(crate) fn into_parts(self) -> (TokenStream, FunctionImport) {
+		(self.item, self.import)
 	}
 }
 
 impl From<Function> for Item {
 	fn from(value: Function) -> Self {
-		match value {
-			Function::Fn(item) => item.into(),
-			Function::Impl(item) => item.into(),
-		}
+		syn::parse2(value.item).expect("generated function must be a valid Rust item")
 	}
 }
 
 impl ToTokens for Function {
 	fn to_tokens(&self, tokens: &mut TokenStream) {
-		match self {
-			Self::Fn(item) => item.to_tokens(tokens),
-			Self::Impl(item) => item.to_tokens(tokens),
-		}
+		self.item.to_tokens(tokens);
 	}
 }
 
@@ -271,11 +284,11 @@ impl Default for FunctionJsOutput {
 	}
 }
 
-impl<'a> State<'a> {
+impl State {
 	fn parse(
-		crate_: &'a str,
+		crate_: &str,
 		js_output: FunctionJsOutput,
-		namespace: Option<&'a str>,
+		namespace: Option<&str>,
 		hygiene: &mut Hygiene<'_>,
 		outer_attrs: &[Attribute],
 		sig: &mut Signature,
@@ -424,6 +437,7 @@ impl<'a> State<'a> {
 					_ => {}
 				}
 
+				#[cfg(feature = "macro")]
 				let js_name = js_name.unwrap_or_else(|| {
 					if matches!(operation, JsOperation::Construct) {
 						Self::target_name(&target)
@@ -431,14 +445,21 @@ impl<'a> State<'a> {
 						sig.ident.to_string()
 					}
 				});
+				#[cfg(not(feature = "macro"))]
+				let _ = js_name;
 
 				JsBinding::Generate(GeneratedBinding {
 					target,
+					#[cfg(feature = "macro")]
 					operation,
+					#[cfg(feature = "macro")]
 					js_name,
 				})
 			}
+			#[cfg(feature = "macro")]
 			FunctionJsOutput::Embed(embed) => JsBinding::Embed(embed),
+			#[cfg(not(feature = "macro"))]
+			FunctionJsOutput::Embed(_) => JsBinding::Embed,
 			FunctionJsOutput::Import => JsBinding::Import,
 		};
 		let import_name = binding.import_name(namespace, &sig.ident);
@@ -451,21 +472,15 @@ impl<'a> State<'a> {
 
 		let impl_generic_params = Self::impl_generic_params(&binding, &mut sig.generics);
 
-		let js_bindgen = hygiene.js_bindgen(outer_attrs, span);
 		let r#macro = hygiene.r#macro(outer_attrs, span);
 
 		Ok(Self {
-			crate_,
-			namespace,
-			js_bindgen,
 			r#macro,
-			import_name,
 			foreign_name,
 			inputs,
 			output_ty,
 			impl_generic_params,
 			binding,
-			span,
 		})
 	}
 
@@ -502,6 +517,7 @@ impl<'a> State<'a> {
 		Ok(path.clone())
 	}
 
+	#[cfg(feature = "macro")]
 	fn target_name(target: &JsTarget) -> String {
 		let JsTarget::Static(owner) = target else {
 			unreachable!("only static targets have a type name");
@@ -571,59 +587,35 @@ impl<'a> State<'a> {
 		}
 	}
 
-	fn wat(&self) -> Stmt {
+	#[cfg(feature = "macro")]
+	fn import_descriptor(
+		&self,
+		crate_: &str,
+		namespace: Option<&str>,
+		rust_name: &Ident,
+		attrs: &[Attribute],
+		span: Span,
+	) -> FunctionImport {
 		let Self {
-			crate_,
-			js_bindgen,
 			r#macro,
-			import_name,
 			foreign_name,
 			inputs,
 			output_ty,
-			span,
+			binding,
 			..
 		} = self;
-		let inputs = inputs.iter().map(|input| {
+		let import_name = binding.import_name(namespace, rust_name);
+		let input_descriptors = inputs.iter().map(|input| {
 			let name = &input.wat_name;
 			let ty = &input.abi_type;
 
-			quote_spanned!(*span=> (#name, #ty))
+			quote_spanned!(span=> #r#macro::import_input::<#ty>(#name))
 		});
-		let output = output_ty.iter();
-
-		parse_quote_spanned! {*span=>
-			#js_bindgen::unsafe_global_wat! {
-				"{}",
-				interpolate #r#macro::wat_import!(
-					module = #crate_,
-					import = #import_name,
-					shim = #foreign_name,
-					inputs = [#(#inputs),*],
-					#(output = #output,)*
-				),
-			}
-		}
-	}
-
-	fn js(&self) -> Option<Stmt> {
-		let Self {
-			crate_,
-			js_bindgen,
-			r#macro,
-			import_name,
-			inputs,
-			output_ty,
-			binding,
-			span,
-			..
-		} = self;
 		let input_tys: Vec<_> = inputs.iter().map(|input| &input.abi_type).collect();
-		let input_names: Vec<_> = inputs.iter().map(|input| &input.wat_name).collect();
 		let input_value_names: Vec<_> = inputs
 			.iter()
 			.map(|input| input.slot_names[0].to_string())
 			.collect();
-		let output_tys: Vec<_> = output_ty.iter().collect();
 
 		let mut unique_inputs = Vec::new();
 
@@ -636,70 +628,90 @@ impl<'a> State<'a> {
 		let mut required_embeds = Vec::new();
 
 		if let JsBinding::Embed(name) = binding {
-			required_embeds.push(quote_spanned!(*span=> (#crate_, #name)));
+			required_embeds.push(quote_spanned!(span=> (#crate_, #name)));
 		}
 
 		for ty in &unique_inputs {
-			required_embeds.push(quote_spanned!(*span=> #r#macro::js_input_embed::<#ty>()));
+			required_embeds.push(quote_spanned!(span=> #r#macro::js_input_embed::<#ty>()));
 		}
 
-		for &ty in &output_tys {
-			required_embeds.push(quote_spanned!(*span=> #r#macro::js_output_embed::<#ty>()));
-			required_embeds.push(quote_spanned!(*span=> #r#macro::js_result_embed::<#ty>()));
+		if let Some(ty) = output_ty {
+			required_embeds.push(quote_spanned!(span=> #r#macro::js_output_embed::<#ty>()));
+			required_embeds.push(quote_spanned!(span=> #r#macro::js_result_embed::<#ty>()));
 		}
-
-		let required_embeds = if required_embeds.is_empty() {
-			[].as_slice()
-		} else {
-			&[quote_spanned!(*span=> required_embeds = [#(#required_embeds),*])]
-		};
 
 		let input_names_joined = input_value_names.iter().join(", ");
-		let js_inputs: Vec<_> = input_names
-			.iter()
-			.zip(input_tys.iter())
-			.map(|(name, ty)| quote_spanned!(*span=> (#name, #ty)))
-			.collect();
-		let (direct_wrapper, direct_js_call, indirect_js_call) = match binding {
+		let js = match binding {
 			JsBinding::Generate(binding) => {
 				let call_inputs = if binding.has_receiver() {
 					input_value_names.iter().skip(1).join(", ")
 				} else {
 					input_names_joined.clone()
 				};
-				let expression =
-					binding.expression(self.namespace, &input_value_names, &call_inputs);
+				let expression = binding.expression(namespace, &input_value_names, &call_inputs);
 
-				if binding.requires_wrapper(self.namespace) {
-					(true, expression.clone(), expression)
-				} else {
-					let path = binding.path(self.namespace, &input_value_names);
-					(false, path.clone(), format!("{path}({input_names_joined})"))
-				}
+				let (direct_wrapper, direct_call, indirect_call) =
+					if binding.requires_wrapper(namespace) {
+						(true, expression.clone(), expression)
+					} else {
+						let path = binding.path(namespace, &input_value_names);
+						(false, path.clone(), format!("{path}({input_names_joined})"))
+					};
+
+				Some(quote_spanned! {span=>
+					#r#macro::ImportJs {
+						direct_wrapper: #direct_wrapper,
+						direct_call: #direct_call,
+						indirect_call: #indirect_call,
+						required_embeds: &[#(#required_embeds),*],
+					}
+				})
 			}
 			JsBinding::Embed(name) => {
 				let path = format!("this.#jsEmbed.{crate_}['{name}']");
-				(false, path.clone(), format!("{path}({input_names_joined})"))
-			}
-			JsBinding::Import => return None,
-		};
-		let output = output_ty.iter();
+				let indirect_call = format!("{path}({input_names_joined})");
 
-		Some(parse_quote_spanned! {*span=>
-			#js_bindgen::import_js! {
-				module = #crate_,
-				name = #import_name,
-				#(#required_embeds,)*
-				"{}",
-				interpolate #r#macro::js_import!(
-					direct_wrapper = #direct_wrapper,
-					direct_call = #direct_js_call,
-					indirect_call = #indirect_js_call,
-					inputs = [#(#js_inputs),*],
-					#(output = #output,)*
-				),
+				Some(quote_spanned! {span=>
+					#r#macro::ImportJs {
+						direct_wrapper: false,
+						direct_call: #path,
+						indirect_call: #indirect_call,
+						required_embeds: &[#(#required_embeds),*],
+					}
+				})
 			}
-		})
+			JsBinding::Import => None,
+		};
+		let js_value = if let Some(js) = &js {
+			quote_spanned!(span=> ::core::option::Option::Some(#js))
+		} else {
+			quote_spanned!(span=> ::core::option::Option::None)
+		};
+		let output = if let Some(output) = output_ty {
+			quote_spanned!(span=>
+				::core::option::Option::Some(#r#macro::import_output::<#output>())
+			)
+		} else {
+			quote_spanned!(span=> ::core::option::Option::None)
+		};
+		let has_js = js.is_some();
+		let descriptor = quote_spanned! {span=>
+			#r#macro::ImportDescriptor::new(
+				#crate_,
+				#import_name,
+				#foreign_name,
+				&[#(#input_descriptors),*],
+				#output,
+				#js_value,
+			)
+		};
+
+		FunctionImport {
+			attrs: attrs.to_vec(),
+			descriptor,
+			has_js,
+			r#macro: r#macro.clone(),
+		}
 	}
 }
 
@@ -714,7 +726,7 @@ impl JsBinding {
 
 	fn import_name(&self, namespace: Option<&str>, rust_name: &Ident) -> String {
 		let name = if let Self::Generate(binding) = self
-			&& matches!(&binding.target, JsTarget::Static(_))
+			&& binding.owner().is_some()
 		{
 			format!("{}.{}", binding.owner_name(), rust_name)
 		} else {
@@ -744,16 +756,19 @@ impl GeneratedBinding {
 			.expect("static and instance bindings always have an owner")
 	}
 
+	#[cfg(feature = "macro")]
 	fn has_receiver(&self) -> bool {
 		matches!(&self.target, JsTarget::Instance(_))
 	}
 
+	#[cfg(feature = "macro")]
 	fn requires_wrapper(&self, namespace: Option<&str>) -> bool {
 		namespace.is_some()
 			|| !matches!(&self.target, JsTarget::Global)
 			|| !matches!(self.operation, JsOperation::Call)
 	}
 
+	#[cfg(feature = "macro")]
 	fn path(&self, namespace: Option<&str>, inputs: &[String]) -> String {
 		match &self.target {
 			JsTarget::Global => Self::global_path(namespace, &self.js_name),
@@ -768,6 +783,7 @@ impl GeneratedBinding {
 		}
 	}
 
+	#[cfg(feature = "macro")]
 	fn global_path(namespace: Option<&str>, name: &str) -> String {
 		if let Some(namespace) = namespace {
 			format!("globalThis.{namespace}.{name}")
@@ -776,6 +792,7 @@ impl GeneratedBinding {
 		}
 	}
 
+	#[cfg(feature = "macro")]
 	fn expression(&self, namespace: Option<&str>, inputs: &[String], call_inputs: &str) -> String {
 		let path = self.path(namespace, inputs);
 

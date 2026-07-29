@@ -65,7 +65,10 @@ fn process_items(
 					};
 
 					match r#macro::internal(attr, foreign_mod, Some(crate_), Some(imports)) {
-						Ok(mut items) => output.append(&mut items),
+						Ok(items) => match items.into_items() {
+							Ok(mut items) => output.append(&mut items),
+							Err(e) => error.push(e),
+						},
 						Err((_, e)) => {
 							error.push(e);
 						}

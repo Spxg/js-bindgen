@@ -22,16 +22,6 @@ impl Hygiene<'_> {
 		}
 	}
 
-	pub(crate) fn js_bindgen(&mut self, attrs: &[Attribute], span: Span) -> Path {
-		match self {
-			Hygiene::Imports(imports) => {
-				imports.js_sys_push(attrs, parse_quote_spanned!(span=> js_bindgen));
-				parse_quote_spanned!(span=> js_bindgen)
-			}
-			Hygiene::Hygiene { js_sys } => Self::with_js_sys(*js_sys, &quote!(js_bindgen), span),
-		}
-	}
-
 	pub(crate) fn js_cast(&mut self, attrs: &[Attribute], span: Span) -> Path {
 		match self {
 			Hygiene::Imports(imports) => {

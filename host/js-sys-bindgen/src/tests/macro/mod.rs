@@ -6,9 +6,10 @@ use std::{env, fs};
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use cargo_metadata::{Artifact, CompilerMessage, Message, Target};
 use itertools::Itertools;
-use js_bindgen_ld_shared::{JsBindgenJsSectionParser, JsBindgenWatSectionParser};
+use js_bindgen_ld_shared::{
+	IMPORT_SECTION, JsBindgenJsSectionParser, JsBindgenWatSectionParser, WAT_SECTION,
+};
 use proc_macro2::TokenStream;
-use quote::ToTokens;
 use syn::parse_quote;
 use wasmparser::{Parser, Payload};
 
@@ -33,7 +34,10 @@ macro_rules! test {
 
 		let foreign_mod = syn::parse2(input.clone()).unwrap();
 		let output =
-			r#macro::internal(attr.clone(), foreign_mod, Some("test_crate"), None).unwrap();
+			r#macro::internal(attr.clone(), foreign_mod, Some("test_crate"), None)
+				.unwrap()
+				.into_items()
+				.unwrap();
 		let output = prettyplease::unparse(&File {
 			shebang: None,
 			attrs: Vec::new(),
@@ -103,11 +107,8 @@ fn inner(tmp: &Path, source: &str) -> Result<(Option<String>, Option<String>, Op
 		Some("test_crate"),
 		None,
 	)
-	.unwrap();
-	let js_test: TokenStream = js_test.into_iter().fold(TokenStream::new(), |mut acc, x| {
-		x.to_tokens(&mut acc);
-		acc
-	});
+	.unwrap()
+	.into_token_stream();
 
 	let src = tmp.join("src");
 	fs::create_dir(&src)?;
@@ -211,7 +212,7 @@ fn inner(tmp: &Path, source: &str) -> Result<(Option<String>, Option<String>, Op
 						let payload = payload?;
 
 						match payload {
-							Payload::CustomSection(c) if c.name() == "js_bindgen.wat" => {
+							Payload::CustomSection(c) if c.name() == WAT_SECTION => {
 								let wat = JsBindgenWatSectionParser::new(&c)
 									.exactly_one()
 									.map_err(|wats| {
@@ -224,7 +225,7 @@ fn inner(tmp: &Path, source: &str) -> Result<(Option<String>, Option<String>, Op
 								wat_output = Some(wat.to_owned());
 								js_bindgen_ld_shared::wat_to_object(false, wat).unwrap();
 							}
-							Payload::CustomSection(c) if c.name() == "js_bindgen.import" => {
+							Payload::CustomSection(c) if c.name() == IMPORT_SECTION => {
 								let mut parser = JsBindgenJsSectionParser::new(&c);
 
 								let import = parser.next().unwrap();

@@ -2,9 +2,12 @@ use std::env;
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;
+#[cfg(any(feature = "file", test))]
+use syn::File;
 use syn::parse::Parser;
-use syn::{Error, ForeignItem, Item, ItemForeignMod, LitStr, Path, meta};
+use syn::{Attribute, Error, ForeignItem, Item, ItemForeignMod, LitStr, Path, meta};
 
+use crate::function::FunctionImport;
 use crate::{Function, FunctionJsOutput, FunctionOperation, Hygiene, ImportManager, Type};
 
 pub fn r#macro(
@@ -14,13 +17,12 @@ pub fn r#macro(
 ) -> Result<TokenStream, TokenStream> {
 	match syn::parse2(item).map_err(Error::into_compile_error)? {
 		Item::ForeignMod(foreign_mod) => internal(attr, foreign_mod, None, imports)
-			.map(|items| items.into_iter().map(Item::into_token_stream).collect())
+			.map(GeneratedItems::into_token_stream)
 			.map_err(|(output, error)| {
 				let error = error.into_compile_error();
 
 				if let Some(output) = output {
-					let mut output: TokenStream =
-						output.into_iter().map(Item::into_token_stream).collect();
+					let mut output = output.into_token_stream();
 					output.extend(error);
 					output
 				} else {
@@ -41,7 +43,7 @@ pub(crate) fn internal(
 	mut foreign_mod: ItemForeignMod,
 	crate_: Option<&str>,
 	imports: Option<&mut ImportManager>,
-) -> Result<Vec<Item>, (Option<Vec<Item>>, Error)> {
+) -> Result<GeneratedItems, (Option<GeneratedItems>, Error)> {
 	let mut error = ErrorStack::new();
 
 	let mut js_sys: Option<Path> = None;
@@ -91,7 +93,8 @@ pub(crate) fn internal(
 		));
 	}
 
-	let mut output = Vec::new();
+	let mut output = GeneratedItems::default();
+	let mut function_imports = Vec::new();
 
 	if foreign_mod
 		.abi
@@ -173,7 +176,11 @@ pub(crate) fn internal(
 				};
 
 				match Function::new(&mut hygiene, js_output, namespace.as_deref(), crate_, item) {
-					Ok(function) => output.push(function.into()),
+					Ok(function) => {
+						let (function, import) = function.into_parts();
+						output.push(&function);
+						function_imports.push(import);
+					}
 					Err(e) => error.push(e),
 				}
 			}
@@ -186,7 +193,9 @@ pub(crate) fn internal(
 					error.push(Error::new_spanned(attr, "unsupported attribute"));
 				}
 
-				output.extend(Type::new(&mut hygiene, item));
+				for item in Type::new(&mut hygiene, item) {
+					output.push(&item);
+				}
 			}
 			item => {
 				error.push(Error::new_spanned(
@@ -197,11 +206,104 @@ pub(crate) fn internal(
 		}
 	}
 
+	output.extend(render_import_groups(function_imports));
+
 	if let Some(error) = error.resolve() {
 		Err((Some(output), error))
 	} else {
 		Ok(output)
 	}
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct GeneratedItems(TokenStream);
+
+impl GeneratedItems {
+	fn push(&mut self, item: &impl ToTokens) {
+		item.to_tokens(&mut self.0);
+	}
+
+	fn extend(&mut self, items: TokenStream) {
+		self.0.extend(items);
+	}
+
+	pub(crate) fn into_token_stream(self) -> TokenStream {
+		self.0
+	}
+
+	#[cfg(any(feature = "file", test))]
+	pub(crate) fn into_items(self) -> Result<Vec<Item>, Error> {
+		Ok(syn::parse2::<File>(self.0)?.items)
+	}
+}
+
+struct ImportGroup {
+	attrs: Vec<Attribute>,
+	descriptors: Vec<TokenStream>,
+	has_js: bool,
+	r#macro: Path,
+}
+
+fn render_import_groups(imports: Vec<FunctionImport>) -> TokenStream {
+	let mut groups: Vec<ImportGroup> = Vec::new();
+
+	for import in imports {
+		// One section static may cover every import with the same conditional
+		// compilation boundary. Keeping the original attributes on a containing
+		// item also preserves arbitrary `cfg_attr` expansions.
+		if let Some(group) = groups.iter_mut().find(|group| group.attrs == import.attrs) {
+			group.descriptors.push(import.descriptor);
+			group.has_js |= import.has_js;
+		} else {
+			groups.push(ImportGroup {
+				attrs: import.attrs,
+				descriptors: vec![import.descriptor],
+				has_js: import.has_js,
+				r#macro: import.r#macro,
+			});
+		}
+	}
+
+	groups
+		.into_iter()
+		.fold(TokenStream::new(), |mut output, group| {
+			let ImportGroup {
+				attrs,
+				descriptors,
+				has_js,
+				r#macro,
+			} = group;
+			let js = has_js.then(|| {
+				quote::quote! {
+					const JS_CAPACITY: ::core::primitive::usize =
+						#r#macro::import_js_batch_capacity(IMPORTS);
+
+					#[used]
+					#[unsafe(link_section = "js_bindgen.import")]
+					static JS_SECTION: #r#macro::ImportBatchSection<JS_CAPACITY> =
+						#r#macro::import_js_batch::<JS_CAPACITY>(IMPORTS);
+				}
+			});
+
+			output.extend(quote::quote! {
+				const _: () = {
+					#(#attrs)*
+					fn import_sections() {
+						const IMPORTS: &[#r#macro::ImportDescriptor] = &[#(#descriptors),*];
+						const WAT_CAPACITY: ::core::primitive::usize =
+							#r#macro::import_wat_batch_capacity(IMPORTS);
+
+						#[used]
+						#[unsafe(link_section = "js_bindgen.wat")]
+						static WAT_SECTION: #r#macro::ImportBatchSection<WAT_CAPACITY> =
+							#r#macro::import_wat_batch::<WAT_CAPACITY>(IMPORTS);
+
+						#js
+					}
+				};
+			});
+			output
+		})
 }
 
 fn set_operation(
