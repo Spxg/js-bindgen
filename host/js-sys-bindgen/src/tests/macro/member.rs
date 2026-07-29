@@ -1,4 +1,4 @@
-fn generated_js(input: syn::ItemForeignMod) -> String {
+fn generated_rust(input: syn::ItemForeignMod) -> String {
 	let output = crate::r#macro::internal(
 		proc_macro2::TokenStream::new(),
 		input,
@@ -8,12 +8,15 @@ fn generated_js(input: syn::ItemForeignMod) -> String {
 	.unwrap()
 	.into_items()
 	.unwrap();
-	let output = prettyplease::unparse(&syn::File {
+	prettyplease::unparse(&syn::File {
 		shebang: None,
 		attrs: Vec::new(),
 		items: output,
-	});
+	})
+}
 
+fn generated_js(input: syn::ItemForeignMod) -> String {
+	let output = generated_rust(input);
 	let dir = tempfile::tempdir().unwrap();
 	let (_, js, _) = super::inner(dir.path(), &output).unwrap();
 	js.unwrap()
@@ -232,6 +235,70 @@ fn global_variadic() {
 }
 
 #[test]
+fn named_getter() {
+	let input = syn::parse_quote! {
+		extern "js-sys" {
+			#[js_sys(getter = "value")]
+			pub fn renamed(self: &JsTest) -> i32;
+		}
+	};
+
+	let output = generated_rust(input);
+	assert!(output.contains(r#"direct_call: "arg0_0.value""#));
+	assert!(output.contains(r#"indirect_call: "arg0_0.value""#));
+}
+
+#[test]
+fn named_setter() {
+	let input = syn::parse_quote! {
+		extern "js-sys" {
+			#[js_sys(setter = "value")]
+			pub fn renamed(self: &JsTest, value: i32);
+		}
+	};
+
+	let output = generated_rust(input);
+	assert!(output.contains(r#"direct_call: "arg0_0.value = arg1_0""#));
+	assert!(output.contains(r#"indirect_call: "arg0_0.value = arg1_0""#));
+}
+
+#[test]
+fn inferred_setter() {
+	let input = syn::parse_quote! {
+		extern "js-sys" {
+			#[js_sys(setter)]
+			pub fn set_value(self: &JsTest, value: i32);
+		}
+	};
+
+	let output = generated_rust(input);
+	assert!(output.contains(r#"direct_call: "arg0_0.value = arg1_0""#));
+	assert!(output.contains(r#"indirect_call: "arg0_0.value = arg1_0""#));
+}
+
+#[test]
+fn setter_requires_a_field_name() {
+	let input = syn::parse_quote! {
+		extern "js-sys" {
+			#[js_sys(setter)]
+			pub fn update(self: &JsTest, value: i32);
+		}
+	};
+	let (_, error) = crate::r#macro::internal(
+		proc_macro2::TokenStream::new(),
+		input,
+		Some("test_crate"),
+		None,
+	)
+	.unwrap_err();
+
+	assert_eq!(
+		error.to_string(),
+		"`setter` cannot infer a field name; use `setter = \"field\"`"
+	);
+}
+
+#[test]
 fn getter() {
 	test!(
 		{},
@@ -329,7 +396,7 @@ fn setter() {
 		{},
 		{
 			extern "js-sys" {
-				#[js_sys(setter)]
+				#[js_sys(setter = "test")]
 				pub fn test(self: &JsTest, value: &JsValue);
 			}
 		},

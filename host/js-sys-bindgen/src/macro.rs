@@ -176,9 +176,11 @@ pub(crate) fn internal(
 						} else if meta.path.is_ident("constructor") {
 							set_operation(&meta, operation, FunctionOperation::Constructor)
 						} else if meta.path.is_ident("getter") {
-							set_operation(&meta, operation, FunctionOperation::Getter)
+							let name = property_name(&meta)?;
+							set_operation(&meta, operation, FunctionOperation::Getter(name))
 						} else if meta.path.is_ident("setter") {
-							set_operation(&meta, operation, FunctionOperation::Setter)
+							let name = property_name(&meta)?;
+							set_operation(&meta, operation, FunctionOperation::Setter(name))
 						} else {
 							Err(meta.error("unsupported attribute"))
 						}
@@ -344,6 +346,14 @@ fn set_operation(
 	}
 
 	Ok(())
+}
+
+fn property_name(meta: &meta::ParseNestedMeta<'_>) -> Result<Option<String>, Error> {
+	if meta.input.is_empty() {
+		Ok(None)
+	} else {
+		Ok(Some(meta.value()?.parse::<LitStr>()?.value()))
+	}
 }
 
 pub(crate) struct ErrorStack(Option<Error>);

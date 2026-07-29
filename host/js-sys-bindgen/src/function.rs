@@ -40,11 +40,10 @@ pub enum FunctionJsOutput {
 	Import,
 }
 
-#[derive(Clone, Copy)]
 pub enum FunctionOperation {
 	Constructor,
-	Getter,
-	Setter,
+	Getter(Option<String>),
+	Setter(Option<String>),
 }
 
 struct State {
@@ -82,6 +81,8 @@ struct GeneratedBinding {
 	operation: JsOperation,
 	#[cfg(feature = "macro")]
 	js_name: String,
+	#[cfg(feature = "macro")]
+	property_name: Option<String>,
 }
 
 enum JsTarget {
@@ -391,12 +392,28 @@ impl State {
 					));
 				}
 
-				let operation = match operation {
-					Some(FunctionOperation::Constructor) => JsOperation::Construct,
-					Some(FunctionOperation::Getter) => JsOperation::Getter,
-					Some(FunctionOperation::Setter) => JsOperation::Setter,
-					None => JsOperation::Call,
+				let (operation, property_name) = match operation {
+					Some(FunctionOperation::Constructor) => (JsOperation::Construct, None),
+					Some(FunctionOperation::Getter(name)) => (
+						JsOperation::Getter,
+						Some(name.unwrap_or_else(|| sig.ident.to_string())),
+					),
+					Some(FunctionOperation::Setter(name)) => (
+						JsOperation::Setter,
+						Some(match name {
+							Some(name) => name,
+							None => Self::infer_setter_property(&sig.ident)?,
+						}),
+					),
+					None => (JsOperation::Call, None),
 				};
+				if property_name.is_some() && js_name.is_some() {
+					return Err(Error::new(
+						span,
+						"`js_name` cannot be combined with `getter` or `setter`; specify the field \
+						 on the property operation",
+					));
+				}
 				let target = if matches!(operation, JsOperation::Construct) {
 					if self_ty.is_some() {
 						return Err(Error::new(
@@ -464,7 +481,7 @@ impl State {
 					}
 				});
 				#[cfg(not(feature = "macro"))]
-				let _ = js_name;
+				let _ = (js_name, property_name);
 
 				JsBinding::Generate(GeneratedBinding {
 					target,
@@ -474,6 +491,8 @@ impl State {
 					operation,
 					#[cfg(feature = "macro")]
 					js_name,
+					#[cfg(feature = "macro")]
+					property_name,
 				})
 			}
 			#[cfg(feature = "macro")]
@@ -513,6 +532,21 @@ impl State {
 		};
 
 		Self::constructor_owner_from_type(output)
+	}
+
+	fn infer_setter_property(ident: &Ident) -> Result<String> {
+		let name = ident.to_string();
+		let Some(property) = name
+			.strip_prefix("set_")
+			.filter(|property| !property.is_empty())
+		else {
+			return Err(Error::new_spanned(
+				ident,
+				"`setter` cannot infer a field name; use `setter = \"field\"`",
+			));
+		};
+
+		Ok(property.to_owned())
 	}
 
 	fn constructor_owner_from_type(output: &Type) -> Result<Path> {
@@ -786,16 +820,17 @@ impl GeneratedBinding {
 
 	#[cfg(feature = "macro")]
 	fn path(&self, namespace: Option<&str>, inputs: &[String]) -> String {
+		let name = self.property_name.as_ref().unwrap_or(&self.js_name);
+
 		match &self.target {
-			JsTarget::Global => Self::global_path(namespace, &self.js_name),
-			JsTarget::Instance(_) => format!("{}.{}", inputs[0], self.js_name),
+			JsTarget::Global => Self::global_path(namespace, name),
+			JsTarget::Instance(_) => format!("{}.{name}", inputs[0]),
 			JsTarget::Static(_) if matches!(self.operation, JsOperation::Construct) => {
-				Self::global_path(namespace, &self.js_name)
+				Self::global_path(namespace, name)
 			}
-			JsTarget::Static(_) => Self::global_path(
-				namespace,
-				&format!("{}.{}", self.owner_name(), self.js_name),
-			),
+			JsTarget::Static(_) => {
+				Self::global_path(namespace, &format!("{}.{name}", self.owner_name()))
+			}
 		}
 	}
 
