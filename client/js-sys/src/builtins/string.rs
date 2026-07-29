@@ -2,14 +2,21 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::{self, Display, Formatter};
 
+use js_sys_macro::js_sys;
+
+use super::object::Object;
 use crate::JsValue;
 use crate::util::{PtrConst, PtrLength, PtrMut};
 
-#[crate::js_sys(js_sys = crate)]
+#[js_sys(js_sys = crate)]
 extern "js-sys" {
-	#[derive(Clone, Debug)]
+	#[js_sys(js_name = "String", extends = Object)]
+	#[derive(Debug, Clone, PartialEq, Eq)]
 	pub type JsString;
+}
 
+#[js_sys(js_sys = crate)]
+extern "js-sys" {
 	#[js_sys(js_name = "String")]
 	fn string_constructor(value: &JsValue) -> JsString;
 

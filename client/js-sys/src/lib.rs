@@ -22,11 +22,12 @@ mod interop;
 #[doc(hidden)]
 pub mod r#macro;
 
+pub use builtins::{
+	Error, ErrorOptions, JsArray, JsBigInt, JsNumber, JsString, Object, TryFromJsArrayError,
+};
 pub use js_bindgen;
 pub use js_sys_macro::{closure, js_sys};
-
-pub use crate::builtins::{JsArray, JsBigInt, JsNumber, JsString, TryFromJsArrayError};
-pub use crate::runtime::{Closure, JsValue, UnwrapThrowExt, panic};
+pub use runtime::{Closure, JsValue, UnwrapThrowExt, panic};
 
 #[cfg(not(target_feature = "reference-types"))]
 compile_error!("`js-sys` requires the `reference-types` target feature");

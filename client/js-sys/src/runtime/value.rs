@@ -281,3 +281,5 @@ impl PartialEq for JsValue {
 		js_value_partial_eq(self, other)
 	}
 }
+
+impl Eq for JsValue {}
