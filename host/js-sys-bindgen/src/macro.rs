@@ -1,3 +1,4 @@
+use std::collections::{HashMap, VecDeque};
 use std::env;
 
 use proc_macro2::TokenStream;
@@ -7,28 +8,31 @@ use syn::File;
 use syn::parse::Parser;
 use syn::{Attribute, Error, ForeignItem, Item, ItemForeignMod, LitStr, Path, meta};
 
-use crate::function::FunctionImport;
-use crate::{Function, FunctionJsOutput, FunctionOperation, Hygiene, ImportManager, Type};
+use crate::function::{FunctionImport, expand};
+use crate::hygiene::Hygiene;
+#[cfg(feature = "file")]
+use crate::hygiene::ImportManager;
+use crate::r#type::{Type, TypeOptions};
 
-pub fn r#macro(
-	attr: TokenStream,
-	item: TokenStream,
-	imports: Option<&mut ImportManager>,
-) -> Result<TokenStream, TokenStream> {
+pub fn r#macro(attr: TokenStream, item: TokenStream) -> Result<TokenStream, TokenStream> {
 	match syn::parse2(item).map_err(Error::into_compile_error)? {
-		Item::ForeignMod(foreign_mod) => internal(attr, foreign_mod, None, imports)
-			.map(GeneratedItems::into_token_stream)
-			.map_err(|(output, error)| {
-				let error = error.into_compile_error();
+		Item::ForeignMod(foreign_mod) => {
+			let crate_name = env::var("CARGO_CRATE_NAME").expect("`CARGO_CRATE_NAME` not found");
 
-				if let Some(output) = output {
-					let mut output = output.into_token_stream();
-					output.extend(error);
-					output
-				} else {
-					error
-				}
-			}),
+			expand_proc_macro(attr, foreign_mod, &crate_name)
+				.map(GeneratedItems::into_token_stream)
+				.map_err(|(output, error)| {
+					let error = error.into_compile_error();
+
+					if let Some(output) = output {
+						let mut output = output.into_token_stream();
+						output.extend(error);
+						output
+					} else {
+						error
+					}
+				})
+		}
 		Item::Fn(function) => {
 			crate::export::r#macro(attr, &function, None).map_err(Error::into_compile_error)
 		}
@@ -38,20 +42,64 @@ pub fn r#macro(
 	}
 }
 
-pub(crate) fn internal(
+#[cfg(feature = "file")]
+pub(crate) fn expand_file(
 	attr: TokenStream,
-	mut foreign_mod: ItemForeignMod,
-	crate_: Option<&str>,
-	imports: Option<&mut ImportManager>,
+	foreign_mod: ItemForeignMod,
+	crate_name: &str,
+	imports: &mut ImportManager,
 ) -> Result<GeneratedItems, (Option<GeneratedItems>, Error)> {
-	let mut error = ErrorStack::new();
+	let (_, namespace, error) = parse_block_options(attr, false);
 
+	expand_foreign_mod(
+		foreign_mod,
+		crate_name,
+		namespace.as_deref(),
+		Hygiene::Imports(imports),
+		error,
+	)
+}
+
+#[cfg(test)]
+pub(crate) fn expand_for_test(
+	attr: TokenStream,
+	foreign_mod: ItemForeignMod,
+	crate_name: &str,
+) -> Result<GeneratedItems, (Option<GeneratedItems>, Error)> {
+	expand_proc_macro(attr, foreign_mod, crate_name)
+}
+
+fn expand_proc_macro(
+	attr: TokenStream,
+	foreign_mod: ItemForeignMod,
+	crate_name: &str,
+) -> Result<GeneratedItems, (Option<GeneratedItems>, Error)> {
+	let (js_sys, namespace, error) = parse_block_options(attr, true);
+
+	expand_foreign_mod(
+		foreign_mod,
+		crate_name,
+		namespace.as_deref(),
+		Hygiene::Qualified {
+			js_sys: js_sys.as_ref(),
+		},
+		error,
+	)
+}
+
+fn parse_block_options(
+	attr: TokenStream,
+	allow_js_sys_path: bool,
+) -> (Option<Path>, Option<String>, ErrorStack) {
+	let mut error = ErrorStack::new();
 	let mut js_sys: Option<Path> = None;
 	let mut namespace: Option<String> = None;
 
 	if let Err(e) = meta::parser(|meta| {
 		if meta.path.is_ident("js_sys") {
-			if imports.is_some() {
+			// The block-level `js_sys` option selects the crate path used by
+			// every generated item in this foreign module.
+			if !allow_js_sys_path {
 				Err(meta.error("`js_sys` attribute only allowed with proc-macro hygiene"))
 			} else if js_sys.is_some() {
 				Err(meta.error("duplicate attribute"))
@@ -60,6 +108,8 @@ pub(crate) fn internal(
 				Ok(())
 			}
 		} else if meta.path.is_ident("namespace") {
+			// The block-level `namespace` prefixes every generated JavaScript
+			// global path and import symbol in this foreign module.
 			if namespace.is_some() {
 				Err(meta.error("duplicate attribute"))
 			} else {
@@ -75,14 +125,16 @@ pub(crate) fn internal(
 		error.push(e);
 	}
 
-	let mut hygiene = if let Some(imports) = imports {
-		Hygiene::Imports(imports)
-	} else {
-		Hygiene::Hygiene {
-			js_sys: js_sys.as_ref(),
-		}
-	};
+	(js_sys, namespace, error)
+}
 
+fn expand_foreign_mod(
+	mut foreign_mod: ItemForeignMod,
+	crate_name: &str,
+	namespace: Option<&str>,
+	mut hygiene: Hygiene<'_>,
+	mut error: ErrorStack,
+) -> Result<GeneratedItems, (Option<GeneratedItems>, Error)> {
 	for attr in foreign_mod
 		.attrs
 		.extract_if(.., |attr| attr.path().is_ident("js_sys"))
@@ -95,12 +147,14 @@ pub(crate) fn internal(
 
 	let mut output = GeneratedItems::default();
 	let mut function_imports = Vec::new();
+	let mut type_options = VecDeque::new();
+	let mut js_names = HashMap::new();
 
 	if foreign_mod
 		.abi
 		.name
 		.as_ref()
-		.is_some_and(|value| value.value() != "js-sys")
+		.is_none_or(|value| value.value() != "js-sys")
 	{
 		error.push(Error::new_spanned(
 			&foreign_mod.abi.name,
@@ -108,122 +162,34 @@ pub(crate) fn internal(
 		));
 	}
 
+	for item in &mut foreign_mod.items {
+		if let ForeignItem::Type(item) = item {
+			let options = TypeOptions::parse(item, |e| error.push(e));
+			let rust_name = item.ident.to_string();
+			let js_name = options.js_name.clone().unwrap_or_else(|| rust_name.clone());
+
+			js_names.insert(rust_name.clone(), js_name);
+			type_options.push_back(options);
+		}
+	}
+
 	for item in foreign_mod.items {
 		match item {
-			ForeignItem::Fn(mut item) => {
-				let mut js_output = FunctionJsOutput::default();
-
-				for attr in item
-					.attrs
-					.extract_if(.., |attr| attr.path().is_ident("js_sys"))
-				{
-					if let Err(e) = attr.parse_nested_meta(|meta| {
-						let FunctionJsOutput::Generate {
-							js_name,
-							static_of,
-							operation,
-							variadic,
-						} = &mut js_output
-						else {
-							return Err(meta.error("found duplicate/incompatible attribute"));
-						};
-
-						if meta.path.is_ident("js_name") {
-							*js_name = Some(meta.value()?.parse::<LitStr>()?.value());
-							Ok(())
-						} else if meta.path.is_ident("variadic") {
-							if !meta.input.is_empty() {
-								Err(meta.error("`variadic` supports no values"))
-							} else if *variadic {
-								Err(meta.error("duplicate attribute"))
-							} else {
-								*variadic = true;
-								Ok(())
-							}
-						} else if meta.path.is_ident("js_import") {
-							if meta.input.is_empty() {
-								let incompatible = js_name.is_some()
-									|| static_of.is_some() || operation.is_some()
-									|| *variadic;
-
-								if incompatible {
-									return Err(
-										meta.error("found duplicate/incompatible attribute")
-									);
-								}
-								js_output = FunctionJsOutput::Import;
-								Ok(())
-							} else {
-								Err(meta.error("`js_import` supports no values"))
-							}
-						} else if meta.path.is_ident("js_embed") {
-							let incompatible = js_name.is_some()
-								|| static_of.is_some() || operation.is_some()
-								|| *variadic;
-
-							if incompatible {
-								return Err(meta.error("found duplicate/incompatible attribute"));
-							}
-							js_output =
-								FunctionJsOutput::Embed(meta.value()?.parse::<LitStr>()?.value());
-							Ok(())
-						} else if meta.path.is_ident("static_of") {
-							if static_of.replace(meta.value()?.parse()?).is_some() {
-								Err(meta.error("duplicate attribute"))
-							} else {
-								Ok(())
-							}
-						} else if meta.path.is_ident("constructor") {
-							set_operation(&meta, operation, FunctionOperation::Constructor)
-						} else if meta.path.is_ident("getter") {
-							let name = property_name(&meta)?;
-							set_operation(&meta, operation, FunctionOperation::Getter(name))
-						} else if meta.path.is_ident("setter") {
-							let name = property_name(&meta)?;
-							set_operation(&meta, operation, FunctionOperation::Setter(name))
-						} else {
-							Err(meta.error("unsupported attribute"))
-						}
-					}) {
-						error.push(e);
-					}
-				}
-
-				let crate_ = if let Some(crate_) = crate_ {
-					crate_
-				} else {
-					&env::var("CARGO_CRATE_NAME").expect("`CARGO_CRATE_NAME` not found")
-				};
-
-				match Function::new(&mut hygiene, js_output, namespace.as_deref(), crate_, item) {
-					Ok(function) => {
-						let (function, import) = function.into_parts();
+			ForeignItem::Fn(item) => {
+				match expand(&mut hygiene, namespace, crate_name, &js_names, item) {
+					Ok((function, import)) => {
 						output.push(&function);
 						function_imports.push(import);
 					}
 					Err(e) => error.push(e),
 				}
 			}
-			ForeignItem::Type(mut item) => {
-				let mut extends = Vec::new();
+			ForeignItem::Type(item) => {
+				let options = type_options
+					.pop_front()
+					.expect("all foreign types were parsed in the first pass");
 
-				for attr in item
-					.attrs
-					.extract_if(.., |attr| attr.path().is_ident("js_sys"))
-				{
-					if let Err(e) = attr.parse_nested_meta(|meta| {
-						if meta.path.is_ident("extends") {
-							extends.push(meta.value()?.parse()?);
-							Ok(())
-						} else {
-							Err(meta.error("unsupported attribute"))
-						}
-					}) {
-						error.push(e);
-					}
-				}
-
-				for item in Type::with_extends(&mut hygiene, item, &extends) {
+				for item in Type::with_extends(&mut hygiene, item, &options.extends) {
 					output.push(&item);
 				}
 			}
@@ -268,10 +234,10 @@ impl GeneratedItems {
 }
 
 struct ImportGroup {
-	attrs: Vec<Attribute>,
+	cfg_attrs: Vec<Attribute>,
 	descriptors: Vec<TokenStream>,
-	has_js: bool,
-	r#macro: Path,
+	needs_js_section: bool,
+	macro_path: Path,
 }
 
 fn render_import_groups(imports: Vec<FunctionImport>) -> TokenStream {
@@ -281,15 +247,18 @@ fn render_import_groups(imports: Vec<FunctionImport>) -> TokenStream {
 		// One section static may cover every import with the same conditional
 		// compilation boundary. Keeping the original attributes on a containing
 		// item also preserves arbitrary `cfg_attr` expansions.
-		if let Some(group) = groups.iter_mut().find(|group| group.attrs == import.attrs) {
+		if let Some(group) = groups
+			.iter_mut()
+			.find(|group| group.cfg_attrs == import.cfg_attrs)
+		{
 			group.descriptors.push(import.descriptor);
-			group.has_js |= import.has_js;
+			group.needs_js_section |= import.needs_js_section;
 		} else {
 			groups.push(ImportGroup {
-				attrs: import.attrs,
+				cfg_attrs: import.cfg_attrs,
 				descriptors: vec![import.descriptor],
-				has_js: import.has_js,
-				r#macro: import.r#macro,
+				needs_js_section: import.needs_js_section,
+				macro_path: import.macro_path,
 			});
 		}
 	}
@@ -298,62 +267,40 @@ fn render_import_groups(imports: Vec<FunctionImport>) -> TokenStream {
 		.into_iter()
 		.fold(TokenStream::new(), |mut output, group| {
 			let ImportGroup {
-				attrs,
+				cfg_attrs,
 				descriptors,
-				has_js,
-				r#macro,
+				needs_js_section,
+				macro_path,
 			} = group;
-			let js = has_js.then(|| {
+			let js = needs_js_section.then(|| {
 				quote::quote! {
 					const JS_CAPACITY: ::core::primitive::usize =
-						#r#macro::import_js_batch_capacity(IMPORTS);
+						#macro_path::import_js_capacity(IMPORTS);
 
 					#[used]
 					#[unsafe(link_section = "js_bindgen.import")]
-					static JS_SECTION: #r#macro::ImportBatchSection<JS_CAPACITY> =
-						#r#macro::import_js_batch::<JS_CAPACITY>(IMPORTS);
+					static JS_SECTION: #macro_path::ImportSection<JS_CAPACITY> =
+						#macro_path::import_js::<JS_CAPACITY>(IMPORTS);
 				}
 			});
 
 			output.extend(quote::quote! {
+				#(#cfg_attrs)*
 				const _: () = {
-					#(#attrs)*
-					fn import_sections() {
-						const IMPORTS: &[#r#macro::ImportDescriptor] = &[#(#descriptors),*];
-						const WAT_CAPACITY: ::core::primitive::usize =
-							#r#macro::import_wat_batch_capacity(IMPORTS);
+					const IMPORTS: &[#macro_path::ImportDescriptor] = &[#(#descriptors),*];
+					const WAT_CAPACITY: ::core::primitive::usize =
+						#macro_path::import_wat_capacity(IMPORTS);
 
-						#[used]
-						#[unsafe(link_section = "js_bindgen.wat")]
-						static WAT_SECTION: #r#macro::ImportBatchSection<WAT_CAPACITY> =
-							#r#macro::import_wat_batch::<WAT_CAPACITY>(IMPORTS);
+					#[used]
+					#[unsafe(link_section = "js_bindgen.wat")]
+					static WAT_SECTION: #macro_path::ImportSection<WAT_CAPACITY> =
+						#macro_path::import_wat::<WAT_CAPACITY>(IMPORTS);
 
-						#js
-					}
+					#js
 				};
 			});
 			output
 		})
-}
-
-fn set_operation(
-	meta: &meta::ParseNestedMeta<'_>,
-	operation: &mut Option<FunctionOperation>,
-	value: FunctionOperation,
-) -> Result<(), Error> {
-	if operation.replace(value).is_some() {
-		return Err(meta.error("found duplicate/incompatible attribute"));
-	}
-
-	Ok(())
-}
-
-fn property_name(meta: &meta::ParseNestedMeta<'_>) -> Result<Option<String>, Error> {
-	if meta.input.is_empty() {
-		Ok(None)
-	} else {
-		Ok(Some(meta.value()?.parse::<LitStr>()?.value()))
-	}
 }
 
 pub(crate) struct ErrorStack(Option<Error>);

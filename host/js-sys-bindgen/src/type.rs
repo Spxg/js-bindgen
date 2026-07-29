@@ -1,23 +1,70 @@
 use proc_macro2::TokenStream;
-use quote::{ToTokens, quote_spanned};
+use quote::{ToTokens, quote, quote_spanned};
 use syn::spanned::Spanned;
-use syn::{Fields, ForeignItemType, Item, ItemImpl, ItemStruct, Path, Token, parse_quote_spanned};
+use syn::{
+	Error, Fields, ForeignItemType, Item, ItemImpl, ItemStruct, LitStr, Path, Token,
+	parse_quote_spanned,
+};
 
-use crate::Hygiene;
+use crate::hygiene::Hygiene;
 
-pub struct Type {
-	pub r#struct: ItemStruct,
-	pub impls: Vec<ItemImpl>,
+pub(crate) struct Type {
+	r#struct: ItemStruct,
+	impls: Vec<ItemImpl>,
+}
+
+#[derive(Default)]
+pub(crate) struct TypeOptions {
+	/// JavaScript type name used by constructors and static members in this
+	/// block.
+	pub(crate) js_name: Option<String>,
+	/// JavaScript parent types. The first parent is also the `Deref` target.
+	pub(crate) extends: Vec<Path>,
+}
+
+impl TypeOptions {
+	pub(crate) fn parse(item: &mut ForeignItemType, mut on_error: impl FnMut(Error)) -> Self {
+		let mut options = Self::default();
+
+		// Type-level `#[js_sys(...)]` attributes describe the foreign type itself;
+		// function binding options are parsed separately.
+		for attr in item
+			.attrs
+			.extract_if(.., |attr| attr.path().is_ident("js_sys"))
+		{
+			if let Err(error) = attr.parse_nested_meta(|meta| {
+				if meta.path.is_ident("js_name") {
+					let js_name = meta.value()?.parse::<LitStr>()?.value();
+
+					if options.js_name.replace(js_name).is_some() {
+						Err(meta.error("duplicate attribute"))
+					} else {
+						Ok(())
+					}
+				} else if meta.path.is_ident("extends") {
+					options.extends.push(meta.value()?.parse()?);
+					Ok(())
+				} else {
+					Err(meta.error("unsupported attribute"))
+				}
+			}) {
+				on_error(error);
+			}
+		}
+
+		options
+	}
 }
 
 impl Type {
+	#[cfg(any(feature = "web-idl", test))]
 	#[must_use]
-	pub fn new(hygiene: &mut Hygiene<'_>, item: ForeignItemType) -> Self {
+	pub(crate) fn new(hygiene: &mut Hygiene<'_>, item: ForeignItemType) -> Self {
 		Self::with_extends(hygiene, item, &[])
 	}
 
 	#[must_use]
-	pub fn with_extends(
+	pub(crate) fn with_extends(
 		hygiene: &mut Hygiene<'_>,
 		item: ForeignItemType,
 		extends: &[Path],
@@ -52,12 +99,32 @@ impl Type {
 			)
 		} else {
 			let phantom_data = hygiene.phantom_data(&cfgs, span);
+			let marker_types: Vec<_> = generics
+				.params
+				.iter()
+				.filter_map(|param| match param {
+					syn::GenericParam::Lifetime(param) => {
+						let lifetime = &param.lifetime;
+						Some(quote_spanned!(span=> &#lifetime ()))
+					}
+					syn::GenericParam::Type(param) => {
+						let ident = &param.ident;
+						Some(quote_spanned!(span=> #ident))
+					}
+					syn::GenericParam::Const(_) => None,
+				})
+				.collect();
+			let marker_type = match marker_types.as_slice() {
+				[] => quote!(()),
+				[ty] => quote!(#ty),
+				types => quote!((#(#types,)*)),
+			};
 
 			(
 				Fields::Named(parse_quote_spanned! {span=>
 					{
 						value: #js_value,
-						_type: #phantom_data #gen_type,
+						_type: #phantom_data<#marker_type>,
 					}
 				}),
 				None,

@@ -253,9 +253,14 @@ impl<T: ?Sized> Closure<T> {
 		&self.value
 	}
 
+	/// # Safety
+	///
+	/// `value` must be a callback produced by the matching `js-sys` closure
+	/// factory. In particular, it must carry the `unref` method used by
+	/// [`Closure::drop`].
 	#[doc(hidden)]
 	#[must_use]
-	pub fn from_js_value(value: JsValue) -> Self {
+	pub unsafe fn from_js_value(value: JsValue) -> Self {
 		Self {
 			value,
 			_type: PhantomData,

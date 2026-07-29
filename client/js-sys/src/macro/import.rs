@@ -80,11 +80,11 @@ pub struct ImportDescriptor {
 
 /// One framed sequence of length-prefixed custom-section records.
 ///
-/// `capacity` lets multiple padded batches be concatenated in one custom
+/// `capacity` lets multiple padded fragments be concatenated in one custom
 /// section. `used` excludes the zero-filled tail of `records`.
 #[doc(hidden)]
 #[repr(C)]
-pub struct ImportBatchSection<const CAPACITY: usize> {
+pub struct ImportSection<const CAPACITY: usize> {
 	capacity: [u8; 4],
 	used: [u8; 4],
 	records: [u8; CAPACITY],
@@ -201,13 +201,13 @@ impl ImportDescriptor {
 	}
 }
 
-/// Returns a safe upper bound for [`import_wat_batch`].
+/// Returns a safe upper bound for [`import_wat`].
 ///
 /// This follows the renderer without scanning declaration contents, so it is
-/// suitable for sizing a padded, single-pass batch.
+/// suitable for sizing a padded, single-pass section.
 #[doc(hidden)]
 #[must_use]
-pub const fn import_wat_batch_capacity(imports: &[ImportDescriptor]) -> usize {
+pub const fn import_wat_capacity(imports: &[ImportDescriptor]) -> usize {
 	let mut capacity = Capacity::new();
 	let mut import = 0;
 
@@ -226,22 +226,22 @@ pub const fn import_wat_batch_capacity(imports: &[ImportDescriptor]) -> usize {
 
 #[doc(hidden)]
 #[must_use]
-pub const fn import_wat_batch<const CAPACITY: usize>(
+pub const fn import_wat<const CAPACITY: usize>(
 	imports: &[ImportDescriptor],
-) -> ImportBatchSection<CAPACITY> {
+) -> ImportSection<CAPACITY> {
 	let mut writer = Writer::<CAPACITY>::new();
-	write_wat_batch(&mut writer, imports);
+	write_wat(&mut writer, imports);
 
-	ImportBatchSection::new(writer)
+	ImportSection::new(writer)
 }
 
-/// Returns a safe upper bound for [`import_js_batch`].
+/// Returns a safe upper bound for [`import_js`].
 ///
 /// This follows the renderer without scanning template contents, so it is
-/// suitable for sizing a padded, single-pass batch.
+/// suitable for sizing a padded, single-pass section.
 #[doc(hidden)]
 #[must_use]
-pub const fn import_js_batch_capacity(imports: &[ImportDescriptor]) -> usize {
+pub const fn import_js_capacity(imports: &[ImportDescriptor]) -> usize {
 	let mut capacity = Capacity::new();
 	let mut import = 0;
 
@@ -258,16 +258,16 @@ pub const fn import_js_batch_capacity(imports: &[ImportDescriptor]) -> usize {
 
 #[doc(hidden)]
 #[must_use]
-pub const fn import_js_batch<const CAPACITY: usize>(
+pub const fn import_js<const CAPACITY: usize>(
 	imports: &[ImportDescriptor],
-) -> ImportBatchSection<CAPACITY> {
+) -> ImportSection<CAPACITY> {
 	let mut writer = Writer::<CAPACITY>::new();
-	write_js_batch(&mut writer, imports);
+	write_js(&mut writer, imports);
 
-	ImportBatchSection::new(writer)
+	ImportSection::new(writer)
 }
 
-const fn write_wat_batch<const LEN: usize>(writer: &mut Writer<LEN>, imports: &[ImportDescriptor]) {
+const fn write_wat<const LEN: usize>(writer: &mut Writer<LEN>, imports: &[ImportDescriptor]) {
 	if imports.is_empty() {
 		return;
 	}
@@ -298,7 +298,7 @@ const fn write_wat_batch<const LEN: usize>(writer: &mut Writer<LEN>, imports: &[
 	writer.set_u32(header, record_len);
 }
 
-const fn write_js_batch<const LEN: usize>(writer: &mut Writer<LEN>, imports: &[ImportDescriptor]) {
+const fn write_js<const LEN: usize>(writer: &mut Writer<LEN>, imports: &[ImportDescriptor]) {
 	let mut import = 0;
 
 	while import < imports.len() {
@@ -358,7 +358,7 @@ impl Capacity {
 	}
 }
 
-impl<const CAPACITY: usize> ImportBatchSection<CAPACITY> {
+impl<const CAPACITY: usize> ImportSection<CAPACITY> {
 	const fn new(writer: Writer<CAPACITY>) -> Self {
 		assert!(CAPACITY <= u32::MAX as usize);
 		let used = writer.len();

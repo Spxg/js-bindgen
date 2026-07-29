@@ -33,11 +33,10 @@ macro_rules! test {
 		let input = quote! $input;
 
 		let foreign_mod = syn::parse2(input.clone()).unwrap();
-		let output =
-			r#macro::internal(attr.clone(), foreign_mod, Some("test_crate"), None)
-				.unwrap()
-				.into_items()
-				.unwrap();
+		let output = r#macro::expand_for_test(attr.clone(), foreign_mod, "test_crate")
+			.unwrap()
+			.into_items()
+			.unwrap();
 		let output = prettyplease::unparse(&File {
 			shebang: None,
 			attrs: Vec::new(),
@@ -81,6 +80,12 @@ mod function;
 mod member;
 mod r#type;
 
+fn macro_error(input: syn::ItemForeignMod) -> String {
+	let (_, error) = r#macro::expand_for_test(TokenStream::new(), input, "test_crate").unwrap_err();
+
+	error.to_string()
+}
+
 fn inner(tmp: &Path, source: &str) -> Result<(Option<String>, Option<String>, Option<String>)> {
 	let js_sys = env::current_dir()?
 		.parent()
@@ -101,11 +106,10 @@ fn inner(tmp: &Path, source: &str) -> Result<(Option<String>, Option<String>, Op
 	);
 	fs::write(tmp.join("Cargo.toml"), cargo_toml)?;
 
-	let js_test = r#macro::internal(
+	let js_test = r#macro::expand_for_test(
 		TokenStream::new(),
 		parse_quote! { extern "js-sys" { pub type JsTest; } },
-		Some("test_crate"),
-		None,
+		"test_crate",
 	)
 	.unwrap()
 	.into_token_stream();

@@ -209,7 +209,7 @@ pub(super) const fn write_wat_support_imports<const LEN: usize>(
 					}
 
 					if !was_seen && seen_len == seen.len() {
-						was_seen = batch_line_was_seen(
+						was_seen = previous_line_was_seen(
 							descriptors,
 							descriptor_index,
 							source_index,
@@ -244,7 +244,7 @@ pub(super) const fn write_wat_support_imports<const LEN: usize>(
 	}
 }
 
-const fn batch_line_was_seen(
+const fn previous_line_was_seen(
 	descriptors: &[ImportDescriptor],
 	descriptor_index: usize,
 	source_index: usize,

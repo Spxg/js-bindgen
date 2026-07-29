@@ -82,6 +82,72 @@ fn generic() {
 }
 
 #[test]
+fn multiple_generic_kinds() {
+	let input = syn::parse_quote! {
+		extern "js-sys" {
+			pub type Generic<'a, T, U, const N: usize>;
+		}
+	};
+	let output =
+		crate::r#macro::expand_for_test(proc_macro2::TokenStream::new(), input, "test_crate")
+			.unwrap()
+			.into_items()
+			.unwrap();
+	let output = prettyplease::unparse(&syn::File {
+		shebang: None,
+		attrs: Vec::new(),
+		items: output,
+	});
+	let dir = tempfile::tempdir().unwrap();
+
+	super::inner(dir.path(), &output).unwrap();
+}
+
+#[test]
+fn cfg_attr_only_applies_to_the_declared_type() {
+	let input = syn::parse_quote! {
+		extern "js-sys" {
+			#[cfg_attr(all(), derive(Clone))]
+			pub type JsString;
+		}
+	};
+	let output =
+		crate::r#macro::expand_for_test(proc_macro2::TokenStream::new(), input, "test_crate")
+			.unwrap()
+			.into_items()
+			.unwrap();
+
+	assert_eq!(output.len(), 5);
+	for (index, item) in output.into_iter().enumerate() {
+		let attrs = match item {
+			syn::Item::Struct(item) => item.attrs,
+			syn::Item::Impl(item) => item.attrs,
+			item => panic!("unexpected generated item: {item:?}"),
+		};
+		let has_cfg_attr = attrs.iter().any(|attr| attr.path().is_ident("cfg_attr"));
+
+		assert_eq!(has_cfg_attr, index == 0);
+	}
+}
+
+#[test]
+fn duplicate_type_names_do_not_panic_in_the_macro() {
+	let input = syn::parse_quote! {
+		extern "js-sys" {
+			pub type Duplicate;
+			pub type Duplicate;
+		}
+	};
+	let output =
+		crate::r#macro::expand_for_test(proc_macro2::TokenStream::new(), input, "test_crate")
+			.unwrap()
+			.into_items()
+			.unwrap();
+
+	assert_eq!(output.len(), 10);
+}
+
+#[test]
 fn default() {
 	test!(
 		{},
@@ -176,15 +242,11 @@ fn extends() {
 			pub type Child;
 		}
 	};
-	let output = crate::r#macro::internal(
-		proc_macro2::TokenStream::new(),
-		input,
-		Some("test_crate"),
-		None,
-	)
-	.unwrap()
-	.into_items()
-	.unwrap();
+	let output =
+		crate::r#macro::expand_for_test(proc_macro2::TokenStream::new(), input, "test_crate")
+			.unwrap()
+			.into_items()
+			.unwrap();
 	let mut output = prettyplease::unparse(&syn::File {
 		shebang: None,
 		attrs: Vec::new(),

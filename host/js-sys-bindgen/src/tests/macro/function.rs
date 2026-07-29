@@ -26,34 +26,33 @@ fn basic() {
 				};
 			}
 			const _: () = {
-				fn import_sections() {
-					const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
-						&[::js_sys::r#macro::ImportDescriptor::new(
-							"test_crate",
-							"log",
-							"test_crate.log",
-							&[::js_sys::r#macro::import_input::<&JsValue>("arg0")],
-							::core::option::Option::None,
-							::core::option::Option::Some(::js_sys::r#macro::ImportJs {
-								direct_wrapper: false,
-								direct_call: "globalThis.log",
-								indirect_call: "globalThis.log(arg0_0)",
-								required_embeds: &[::js_sys::r#macro::js_input_embed::<&JsValue>()],
-							}),
-						)];
-					const WAT_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_wat_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.wat")]
-					static WAT_SECTION: ::js_sys::r#macro::ImportBatchSection<WAT_CAPACITY> =
-						::js_sys::r#macro::import_wat_batch::<WAT_CAPACITY>(IMPORTS);
-					const JS_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_js_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.import")]
-					static JS_SECTION: ::js_sys::r#macro::ImportBatchSection<JS_CAPACITY> =
-						::js_sys::r#macro::import_js_batch::<JS_CAPACITY>(IMPORTS);
-				}
+				const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
+					&[::js_sys::r#macro::ImportDescriptor::new(
+						"test_crate",
+						"log",
+						"test_crate.log",
+						&[::js_sys::r#macro::import_input::<&JsValue>("arg0")],
+						::core::option::Option::None,
+						::core::option::Option::Some(::js_sys::r#macro::ImportJs {
+							direct_wrapper: false,
+							direct_call: "globalThis.log",
+							indirect_call: "globalThis.log(arg0_0)",
+							required_embeds: &[::js_sys::r#macro::js_input_embed::<&JsValue>()],
+						}),
+					)];
+				const WAT_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_wat_capacity(IMPORTS);
+
+				#[used]
+				#[unsafe(link_section = "js_bindgen.wat")]
+				static WAT_SECTION: ::js_sys::r#macro::ImportSection<WAT_CAPACITY> =
+					::js_sys::r#macro::import_wat::<WAT_CAPACITY>(IMPORTS);
+				const JS_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_js_capacity(IMPORTS);
+				#[used]
+				#[unsafe(link_section = "js_bindgen.import")]
+				static JS_SECTION: ::js_sys::r#macro::ImportSection<JS_CAPACITY> =
+					::js_sys::r#macro::import_js::<JS_CAPACITY>(IMPORTS);
 			};
 		},
 		"(import \"test_crate\" \"log\" (func $test_crate.import.log (@sym (name \
@@ -97,34 +96,33 @@ fn namespace() {
 				};
 			}
 			const _: () = {
-				fn import_sections() {
-					const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
-						&[::js_sys::r#macro::ImportDescriptor::new(
-							"test_crate",
-							"console.log",
-							"test_crate.console.log",
-							&[::js_sys::r#macro::import_input::<&JsValue>("arg0")],
-							::core::option::Option::None,
-							::core::option::Option::Some(::js_sys::r#macro::ImportJs {
-								direct_wrapper: true,
-								direct_call: "globalThis.console.log(arg0_0)",
-								indirect_call: "globalThis.console.log(arg0_0)",
-								required_embeds: &[::js_sys::r#macro::js_input_embed::<&JsValue>()],
-							}),
-						)];
-					const WAT_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_wat_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.wat")]
-					static WAT_SECTION: ::js_sys::r#macro::ImportBatchSection<WAT_CAPACITY> =
-						::js_sys::r#macro::import_wat_batch::<WAT_CAPACITY>(IMPORTS);
-					const JS_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_js_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.import")]
-					static JS_SECTION: ::js_sys::r#macro::ImportBatchSection<JS_CAPACITY> =
-						::js_sys::r#macro::import_js_batch::<JS_CAPACITY>(IMPORTS);
-				}
+				const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
+					&[::js_sys::r#macro::ImportDescriptor::new(
+						"test_crate",
+						"console.log",
+						"test_crate.console.log",
+						&[::js_sys::r#macro::import_input::<&JsValue>("arg0")],
+						::core::option::Option::None,
+						::core::option::Option::Some(::js_sys::r#macro::ImportJs {
+							direct_wrapper: true,
+							direct_call: "globalThis.console.log(arg0_0)",
+							indirect_call: "globalThis.console.log(arg0_0)",
+							required_embeds: &[::js_sys::r#macro::js_input_embed::<&JsValue>()],
+						}),
+					)];
+				const WAT_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_wat_capacity(IMPORTS);
+
+				#[used]
+				#[unsafe(link_section = "js_bindgen.wat")]
+				static WAT_SECTION: ::js_sys::r#macro::ImportSection<WAT_CAPACITY> =
+					::js_sys::r#macro::import_wat::<WAT_CAPACITY>(IMPORTS);
+				const JS_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_js_capacity(IMPORTS);
+				#[used]
+				#[unsafe(link_section = "js_bindgen.import")]
+				static JS_SECTION: ::js_sys::r#macro::ImportSection<JS_CAPACITY> =
+					::js_sys::r#macro::import_js::<JS_CAPACITY>(IMPORTS);
 			};
 		},
 		"(import \"test_crate\" \"console.log\" (func $test_crate.import.console.log (@sym (name \
@@ -168,34 +166,33 @@ fn js_sys() {
 				};
 			}
 			const _: () = {
-				fn import_sections() {
-					const IMPORTS: &[js_sys::r#macro::ImportDescriptor] =
-						&[js_sys::r#macro::ImportDescriptor::new(
-							"test_crate",
-							"log",
-							"test_crate.log",
-							&[js_sys::r#macro::import_input::<&JsValue>("arg0")],
-							::core::option::Option::None,
-							::core::option::Option::Some(js_sys::r#macro::ImportJs {
-								direct_wrapper: false,
-								direct_call: "globalThis.log",
-								indirect_call: "globalThis.log(arg0_0)",
-								required_embeds: &[js_sys::r#macro::js_input_embed::<&JsValue>()],
-							}),
-						)];
-					const WAT_CAPACITY: ::core::primitive::usize =
-						js_sys::r#macro::import_wat_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.wat")]
-					static WAT_SECTION: js_sys::r#macro::ImportBatchSection<WAT_CAPACITY> =
-						js_sys::r#macro::import_wat_batch::<WAT_CAPACITY>(IMPORTS);
-					const JS_CAPACITY: ::core::primitive::usize =
-						js_sys::r#macro::import_js_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.import")]
-					static JS_SECTION: js_sys::r#macro::ImportBatchSection<JS_CAPACITY> =
-						js_sys::r#macro::import_js_batch::<JS_CAPACITY>(IMPORTS);
-				}
+				const IMPORTS: &[js_sys::r#macro::ImportDescriptor] =
+					&[js_sys::r#macro::ImportDescriptor::new(
+						"test_crate",
+						"log",
+						"test_crate.log",
+						&[js_sys::r#macro::import_input::<&JsValue>("arg0")],
+						::core::option::Option::None,
+						::core::option::Option::Some(js_sys::r#macro::ImportJs {
+							direct_wrapper: false,
+							direct_call: "globalThis.log",
+							indirect_call: "globalThis.log(arg0_0)",
+							required_embeds: &[js_sys::r#macro::js_input_embed::<&JsValue>()],
+						}),
+					)];
+				const WAT_CAPACITY: ::core::primitive::usize =
+					js_sys::r#macro::import_wat_capacity(IMPORTS);
+
+				#[used]
+				#[unsafe(link_section = "js_bindgen.wat")]
+				static WAT_SECTION: js_sys::r#macro::ImportSection<WAT_CAPACITY> =
+					js_sys::r#macro::import_wat::<WAT_CAPACITY>(IMPORTS);
+				const JS_CAPACITY: ::core::primitive::usize =
+					js_sys::r#macro::import_js_capacity(IMPORTS);
+				#[used]
+				#[unsafe(link_section = "js_bindgen.import")]
+				static JS_SECTION: js_sys::r#macro::ImportSection<JS_CAPACITY> =
+					js_sys::r#macro::import_js::<JS_CAPACITY>(IMPORTS);
 			};
 		},
 		"(import \"test_crate\" \"log\" (func $test_crate.import.log (@sym (name \
@@ -249,37 +246,36 @@ fn two_parameters() {
 				};
 			}
 			const _: () = {
-				fn import_sections() {
-					const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
-						&[::js_sys::r#macro::ImportDescriptor::new(
-							"test_crate",
-							"log",
-							"test_crate.log",
-							&[
-								::js_sys::r#macro::import_input::<&JsValue>("arg0"),
-								::js_sys::r#macro::import_input::<&JsValue>("arg1"),
-							],
-							::core::option::Option::None,
-							::core::option::Option::Some(::js_sys::r#macro::ImportJs {
-								direct_wrapper: false,
-								direct_call: "globalThis.log",
-								indirect_call: "globalThis.log(arg0_0, arg1_0)",
-								required_embeds: &[::js_sys::r#macro::js_input_embed::<&JsValue>()],
-							}),
-						)];
-					const WAT_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_wat_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.wat")]
-					static WAT_SECTION: ::js_sys::r#macro::ImportBatchSection<WAT_CAPACITY> =
-						::js_sys::r#macro::import_wat_batch::<WAT_CAPACITY>(IMPORTS);
-					const JS_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_js_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.import")]
-					static JS_SECTION: ::js_sys::r#macro::ImportBatchSection<JS_CAPACITY> =
-						::js_sys::r#macro::import_js_batch::<JS_CAPACITY>(IMPORTS);
-				}
+				const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
+					&[::js_sys::r#macro::ImportDescriptor::new(
+						"test_crate",
+						"log",
+						"test_crate.log",
+						&[
+							::js_sys::r#macro::import_input::<&JsValue>("arg0"),
+							::js_sys::r#macro::import_input::<&JsValue>("arg1"),
+						],
+						::core::option::Option::None,
+						::core::option::Option::Some(::js_sys::r#macro::ImportJs {
+							direct_wrapper: false,
+							direct_call: "globalThis.log",
+							indirect_call: "globalThis.log(arg0_0, arg1_0)",
+							required_embeds: &[::js_sys::r#macro::js_input_embed::<&JsValue>()],
+						}),
+					)];
+				const WAT_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_wat_capacity(IMPORTS);
+
+				#[used]
+				#[unsafe(link_section = "js_bindgen.wat")]
+				static WAT_SECTION: ::js_sys::r#macro::ImportSection<WAT_CAPACITY> =
+					::js_sys::r#macro::import_wat::<WAT_CAPACITY>(IMPORTS);
+				const JS_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_js_capacity(IMPORTS);
+				#[used]
+				#[unsafe(link_section = "js_bindgen.import")]
+				static JS_SECTION: ::js_sys::r#macro::ImportSection<JS_CAPACITY> =
+					::js_sys::r#macro::import_js::<JS_CAPACITY>(IMPORTS);
 			};
 		},
 		"(import \"test_crate\" \"log\" (func $test_crate.import.log (@sym (name \
@@ -298,7 +294,7 @@ fn two_parameters() {
 }
 
 #[test]
-fn batches_functions_and_shared_wat_imports() {
+fn groups_functions_and_shared_wat_imports() {
 	test!(
 		{},
 		{
@@ -347,32 +343,31 @@ fn batches_functions_and_shared_wat_imports() {
 				};
 			}
 			const _: () = {
-				fn import_sections() {
-					const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] = &[
-						::js_sys::r#macro::ImportDescriptor::new(
-							"test_crate",
-							"first",
-							"test_crate.first",
-							&[::js_sys::r#macro::import_input::<&JsValue>("arg0")],
-							::core::option::Option::None,
-							::core::option::Option::None,
-						),
-						::js_sys::r#macro::ImportDescriptor::new(
-							"test_crate",
-							"second",
-							"test_crate.second",
-							&[::js_sys::r#macro::import_input::<&JsValue>("arg0")],
-							::core::option::Option::None,
-							::core::option::Option::None,
-						),
-					];
-					const WAT_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_wat_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.wat")]
-					static WAT_SECTION: ::js_sys::r#macro::ImportBatchSection<WAT_CAPACITY> =
-						::js_sys::r#macro::import_wat_batch::<WAT_CAPACITY>(IMPORTS);
-				}
+				const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] = &[
+					::js_sys::r#macro::ImportDescriptor::new(
+						"test_crate",
+						"first",
+						"test_crate.first",
+						&[::js_sys::r#macro::import_input::<&JsValue>("arg0")],
+						::core::option::Option::None,
+						::core::option::Option::None,
+					),
+					::js_sys::r#macro::ImportDescriptor::new(
+						"test_crate",
+						"second",
+						"test_crate.second",
+						&[::js_sys::r#macro::import_input::<&JsValue>("arg0")],
+						::core::option::Option::None,
+						::core::option::Option::None,
+					),
+				];
+				const WAT_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_wat_capacity(IMPORTS);
+
+				#[used]
+				#[unsafe(link_section = "js_bindgen.wat")]
+				static WAT_SECTION: ::js_sys::r#macro::ImportSection<WAT_CAPACITY> =
+					::js_sys::r#macro::import_wat::<WAT_CAPACITY>(IMPORTS);
 			};
 		},
 		"(import \"test_crate\" \"first\" (func $test_crate.import.first (@sym (name \
@@ -416,34 +411,33 @@ fn empty() {
 				};
 			}
 			const _: () = {
-				fn import_sections() {
-					const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
-						&[::js_sys::r#macro::ImportDescriptor::new(
-							"test_crate",
-							"log",
-							"test_crate.log",
-							&[],
-							::core::option::Option::None,
-							::core::option::Option::Some(::js_sys::r#macro::ImportJs {
-								direct_wrapper: false,
-								direct_call: "globalThis.log",
-								indirect_call: "globalThis.log()",
-								required_embeds: &[],
-							}),
-						)];
-					const WAT_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_wat_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.wat")]
-					static WAT_SECTION: ::js_sys::r#macro::ImportBatchSection<WAT_CAPACITY> =
-						::js_sys::r#macro::import_wat_batch::<WAT_CAPACITY>(IMPORTS);
-					const JS_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_js_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.import")]
-					static JS_SECTION: ::js_sys::r#macro::ImportBatchSection<JS_CAPACITY> =
-						::js_sys::r#macro::import_js_batch::<JS_CAPACITY>(IMPORTS);
-				}
+				const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
+					&[::js_sys::r#macro::ImportDescriptor::new(
+						"test_crate",
+						"log",
+						"test_crate.log",
+						&[],
+						::core::option::Option::None,
+						::core::option::Option::Some(::js_sys::r#macro::ImportJs {
+							direct_wrapper: false,
+							direct_call: "globalThis.log",
+							indirect_call: "globalThis.log()",
+							required_embeds: &[],
+						}),
+					)];
+				const WAT_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_wat_capacity(IMPORTS);
+
+				#[used]
+				#[unsafe(link_section = "js_bindgen.wat")]
+				static WAT_SECTION: ::js_sys::r#macro::ImportSection<WAT_CAPACITY> =
+					::js_sys::r#macro::import_wat::<WAT_CAPACITY>(IMPORTS);
+				const JS_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_js_capacity(IMPORTS);
+				#[used]
+				#[unsafe(link_section = "js_bindgen.import")]
+				static JS_SECTION: ::js_sys::r#macro::ImportSection<JS_CAPACITY> =
+					::js_sys::r#macro::import_js::<JS_CAPACITY>(IMPORTS);
 			};
 		},
 		"(import \"test_crate\" \"log\" (func $test_crate.import.log (@sym (name \
@@ -484,34 +478,33 @@ fn js_name() {
 				};
 			}
 			const _: () = {
-				fn import_sections() {
-					const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
-						&[::js_sys::r#macro::ImportDescriptor::new(
-							"test_crate",
-							"logx",
-							"test_crate.logx",
-							&[::js_sys::r#macro::import_input::<&JsValue>("arg0")],
-							::core::option::Option::None,
-							::core::option::Option::Some(::js_sys::r#macro::ImportJs {
-								direct_wrapper: false,
-								direct_call: "globalThis.log",
-								indirect_call: "globalThis.log(arg0_0)",
-								required_embeds: &[::js_sys::r#macro::js_input_embed::<&JsValue>()],
-							}),
-						)];
-					const WAT_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_wat_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.wat")]
-					static WAT_SECTION: ::js_sys::r#macro::ImportBatchSection<WAT_CAPACITY> =
-						::js_sys::r#macro::import_wat_batch::<WAT_CAPACITY>(IMPORTS);
-					const JS_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_js_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.import")]
-					static JS_SECTION: ::js_sys::r#macro::ImportBatchSection<JS_CAPACITY> =
-						::js_sys::r#macro::import_js_batch::<JS_CAPACITY>(IMPORTS);
-				}
+				const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
+					&[::js_sys::r#macro::ImportDescriptor::new(
+						"test_crate",
+						"logx",
+						"test_crate.logx",
+						&[::js_sys::r#macro::import_input::<&JsValue>("arg0")],
+						::core::option::Option::None,
+						::core::option::Option::Some(::js_sys::r#macro::ImportJs {
+							direct_wrapper: false,
+							direct_call: "globalThis.log",
+							indirect_call: "globalThis.log(arg0_0)",
+							required_embeds: &[::js_sys::r#macro::js_input_embed::<&JsValue>()],
+						}),
+					)];
+				const WAT_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_wat_capacity(IMPORTS);
+
+				#[used]
+				#[unsafe(link_section = "js_bindgen.wat")]
+				static WAT_SECTION: ::js_sys::r#macro::ImportSection<WAT_CAPACITY> =
+					::js_sys::r#macro::import_wat::<WAT_CAPACITY>(IMPORTS);
+				const JS_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_js_capacity(IMPORTS);
+				#[used]
+				#[unsafe(link_section = "js_bindgen.import")]
+				static JS_SECTION: ::js_sys::r#macro::ImportSection<JS_CAPACITY> =
+					::js_sys::r#macro::import_js::<JS_CAPACITY>(IMPORTS);
 			};
 		},
 		"(import \"test_crate\" \"logx\" (func $test_crate.import.logx (@sym (name \
@@ -556,23 +549,22 @@ fn js_import() {
 				};
 			}
 			const _: () = {
-				fn import_sections() {
-					const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
-						&[::js_sys::r#macro::ImportDescriptor::new(
-							"test_crate",
-							"log",
-							"test_crate.log",
-							&[::js_sys::r#macro::import_input::<&JsValue>("arg0")],
-							::core::option::Option::None,
-							::core::option::Option::None,
-						)];
-					const WAT_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_wat_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.wat")]
-					static WAT_SECTION: ::js_sys::r#macro::ImportBatchSection<WAT_CAPACITY> =
-						::js_sys::r#macro::import_wat_batch::<WAT_CAPACITY>(IMPORTS);
-				}
+				const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
+					&[::js_sys::r#macro::ImportDescriptor::new(
+						"test_crate",
+						"log",
+						"test_crate.log",
+						&[::js_sys::r#macro::import_input::<&JsValue>("arg0")],
+						::core::option::Option::None,
+						::core::option::Option::None,
+					)];
+				const WAT_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_wat_capacity(IMPORTS);
+
+				#[used]
+				#[unsafe(link_section = "js_bindgen.wat")]
+				static WAT_SECTION: ::js_sys::r#macro::ImportSection<WAT_CAPACITY> =
+					::js_sys::r#macro::import_wat::<WAT_CAPACITY>(IMPORTS);
 			};
 		},
 		"(import \"test_crate\" \"log\" (func $test_crate.import.log (@sym (name \
@@ -617,37 +609,36 @@ fn js_embed() {
 				};
 			}
 			const _: () = {
-				fn import_sections() {
-					const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
-						&[::js_sys::r#macro::ImportDescriptor::new(
-							"test_crate",
-							"log",
-							"test_crate.log",
-							&[::js_sys::r#macro::import_input::<&JsValue>("arg0")],
-							::core::option::Option::None,
-							::core::option::Option::Some(::js_sys::r#macro::ImportJs {
-								direct_wrapper: false,
-								direct_call: "this.#jsEmbed.test_crate['embed']",
-								indirect_call: "this.#jsEmbed.test_crate['embed'](arg0_0)",
-								required_embeds: &[
-									("test_crate", "embed"),
-									::js_sys::r#macro::js_input_embed::<&JsValue>(),
-								],
-							}),
-						)];
-					const WAT_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_wat_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.wat")]
-					static WAT_SECTION: ::js_sys::r#macro::ImportBatchSection<WAT_CAPACITY> =
-						::js_sys::r#macro::import_wat_batch::<WAT_CAPACITY>(IMPORTS);
-					const JS_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_js_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.import")]
-					static JS_SECTION: ::js_sys::r#macro::ImportBatchSection<JS_CAPACITY> =
-						::js_sys::r#macro::import_js_batch::<JS_CAPACITY>(IMPORTS);
-				}
+				const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
+					&[::js_sys::r#macro::ImportDescriptor::new(
+						"test_crate",
+						"log",
+						"test_crate.log",
+						&[::js_sys::r#macro::import_input::<&JsValue>("arg0")],
+						::core::option::Option::None,
+						::core::option::Option::Some(::js_sys::r#macro::ImportJs {
+							direct_wrapper: false,
+							direct_call: "this.#jsEmbed.test_crate['embed']",
+							indirect_call: "this.#jsEmbed.test_crate['embed'](arg0_0)",
+							required_embeds: &[
+								("test_crate", "embed"),
+								::js_sys::r#macro::js_input_embed::<&JsValue>(),
+							],
+						}),
+					)];
+				const WAT_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_wat_capacity(IMPORTS);
+
+				#[used]
+				#[unsafe(link_section = "js_bindgen.wat")]
+				static WAT_SECTION: ::js_sys::r#macro::ImportSection<WAT_CAPACITY> =
+					::js_sys::r#macro::import_wat::<WAT_CAPACITY>(IMPORTS);
+				const JS_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_js_capacity(IMPORTS);
+				#[used]
+				#[unsafe(link_section = "js_bindgen.import")]
+				static JS_SECTION: ::js_sys::r#macro::ImportSection<JS_CAPACITY> =
+					::js_sys::r#macro::import_js::<JS_CAPACITY>(IMPORTS);
 			};
 		},
 		"(import \"test_crate\" \"log\" (func $test_crate.import.log (@sym (name \
@@ -682,39 +673,36 @@ fn r#return() {
 				::js_sys::r#macro::join_output({ unsafe { is_nan() } })
 			}
 			const _: () = {
-				fn import_sections() {
-					const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
-						&[::js_sys::r#macro::ImportDescriptor::new(
-							"test_crate",
-							"is_nan",
-							"test_crate.is_nan",
-							&[],
-							::core::option::Option::Some(
-								::js_sys::r#macro::import_output::<JsValue>(),
-							),
-							::core::option::Option::Some(::js_sys::r#macro::ImportJs {
-								direct_wrapper: false,
-								direct_call: "globalThis.is_nan",
-								indirect_call: "globalThis.is_nan()",
-								required_embeds: &[
-									::js_sys::r#macro::js_output_embed::<JsValue>(),
-									::js_sys::r#macro::js_result_embed::<JsValue>(),
-								],
-							}),
-						)];
-					const WAT_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_wat_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.wat")]
-					static WAT_SECTION: ::js_sys::r#macro::ImportBatchSection<WAT_CAPACITY> =
-						::js_sys::r#macro::import_wat_batch::<WAT_CAPACITY>(IMPORTS);
-					const JS_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_js_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.import")]
-					static JS_SECTION: ::js_sys::r#macro::ImportBatchSection<JS_CAPACITY> =
-						::js_sys::r#macro::import_js_batch::<JS_CAPACITY>(IMPORTS);
-				}
+				const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
+					&[::js_sys::r#macro::ImportDescriptor::new(
+						"test_crate",
+						"is_nan",
+						"test_crate.is_nan",
+						&[],
+						::core::option::Option::Some(::js_sys::r#macro::import_output::<JsValue>()),
+						::core::option::Option::Some(::js_sys::r#macro::ImportJs {
+							direct_wrapper: false,
+							direct_call: "globalThis.is_nan",
+							indirect_call: "globalThis.is_nan()",
+							required_embeds: &[
+								::js_sys::r#macro::js_output_embed::<JsValue>(),
+								::js_sys::r#macro::js_result_embed::<JsValue>(),
+							],
+						}),
+					)];
+				const WAT_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_wat_capacity(IMPORTS);
+
+				#[used]
+				#[unsafe(link_section = "js_bindgen.wat")]
+				static WAT_SECTION: ::js_sys::r#macro::ImportSection<WAT_CAPACITY> =
+					::js_sys::r#macro::import_wat::<WAT_CAPACITY>(IMPORTS);
+				const JS_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_js_capacity(IMPORTS);
+				#[used]
+				#[unsafe(link_section = "js_bindgen.import")]
+				static JS_SECTION: ::js_sys::r#macro::ImportSection<JS_CAPACITY> =
+					::js_sys::r#macro::import_js::<JS_CAPACITY>(IMPORTS);
 			};
 		},
 		"(import \"test_crate\" \"is_nan\" (func $test_crate.import.is_nan (@sym (name \
@@ -759,36 +747,35 @@ fn cfg() {
 					unsafe { log() }
 				};
 			}
+
+			#[cfg(all())]
 			const _: () = {
-				#[cfg(all())]
-				fn import_sections() {
-					const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
-						&[::js_sys::r#macro::ImportDescriptor::new(
-							"test_crate",
-							"log",
-							"test_crate.log",
-							&[],
-							::core::option::Option::None,
-							::core::option::Option::Some(::js_sys::r#macro::ImportJs {
-								direct_wrapper: false,
-								direct_call: "globalThis.log",
-								indirect_call: "globalThis.log()",
-								required_embeds: &[],
-							}),
-						)];
-					const WAT_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_wat_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.wat")]
-					static WAT_SECTION: ::js_sys::r#macro::ImportBatchSection<WAT_CAPACITY> =
-						::js_sys::r#macro::import_wat_batch::<WAT_CAPACITY>(IMPORTS);
-					const JS_CAPACITY: ::core::primitive::usize =
-						::js_sys::r#macro::import_js_batch_capacity(IMPORTS);
-					#[used]
-					#[unsafe(link_section = "js_bindgen.import")]
-					static JS_SECTION: ::js_sys::r#macro::ImportBatchSection<JS_CAPACITY> =
-						::js_sys::r#macro::import_js_batch::<JS_CAPACITY>(IMPORTS);
-				}
+				const IMPORTS: &[::js_sys::r#macro::ImportDescriptor] =
+					&[::js_sys::r#macro::ImportDescriptor::new(
+						"test_crate",
+						"log",
+						"test_crate.log",
+						&[],
+						::core::option::Option::None,
+						::core::option::Option::Some(::js_sys::r#macro::ImportJs {
+							direct_wrapper: false,
+							direct_call: "globalThis.log",
+							indirect_call: "globalThis.log()",
+							required_embeds: &[],
+						}),
+					)];
+				const WAT_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_wat_capacity(IMPORTS);
+				#[used]
+				#[unsafe(link_section = "js_bindgen.wat")]
+				static WAT_SECTION: ::js_sys::r#macro::ImportSection<WAT_CAPACITY> =
+					::js_sys::r#macro::import_wat::<WAT_CAPACITY>(IMPORTS);
+				const JS_CAPACITY: ::core::primitive::usize =
+					::js_sys::r#macro::import_js_capacity(IMPORTS);
+				#[used]
+				#[unsafe(link_section = "js_bindgen.import")]
+				static JS_SECTION: ::js_sys::r#macro::ImportSection<JS_CAPACITY> =
+					::js_sys::r#macro::import_js::<JS_CAPACITY>(IMPORTS);
 			};
 		},
 		"(import \"test_crate\" \"log\" (func $test_crate.import.log (@sym (name \
@@ -808,13 +795,10 @@ fn preserves_successful_functions_after_an_error() {
 			pub async fn bad();
 		}
 	};
-	let (Some(output), error) = crate::r#macro::internal(
-		proc_macro2::TokenStream::new(),
-		input,
-		Some("test_crate"),
-		None,
-	)
-	.unwrap_err() else {
+	let (Some(output), error) =
+		crate::r#macro::expand_for_test(proc_macro2::TokenStream::new(), input, "test_crate")
+			.unwrap_err()
+	else {
 		panic!("expected the successful function to be preserved");
 	};
 
@@ -828,4 +812,45 @@ fn preserves_successful_functions_after_an_error() {
 	assert!(!output.contains("fn bad"));
 	assert!(output.contains("compile_error"));
 	assert!(output.contains("`async` functions are not supported"));
+}
+
+#[test]
+fn requires_js_sys_abi() {
+	let input = syn::parse_quote! {
+		extern {
+			pub fn log();
+		}
+	};
+
+	assert_eq!(super::macro_error(input), "expected `js-sys` ABI");
+}
+
+#[test]
+fn incompatible_binding_options_are_rejected() {
+	let input = syn::parse_quote! {
+		extern "js-sys" {
+			#[js_sys(js_name = "renamed", js_import)]
+			pub fn log();
+		}
+	};
+
+	assert_eq!(
+		super::macro_error(input),
+		"`js_import` and `js_embed` cannot be combined with JavaScript binding options"
+	);
+}
+
+#[test]
+fn duplicate_parameter_abi_override_is_rejected() {
+	let input = syn::parse_quote! {
+		extern "js-sys" {
+			pub fn log(
+				#[js_sys(type = i32)]
+				#[js_sys(type = u32)]
+				value: i32,
+			);
+		}
+	};
+
+	assert_eq!(super::macro_error(input), "duplicate attribute");
 }

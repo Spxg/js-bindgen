@@ -27,7 +27,7 @@ pub use builtins::{
 };
 pub use js_bindgen;
 pub use js_sys_macro::{closure, js_sys};
-pub use runtime::{Closure, JsValue, UnwrapThrowExt, panic};
+pub use runtime::{Closure, ClosureAllocation, ClosureHeader, JsValue, UnwrapThrowExt, panic};
 
 #[cfg(not(target_feature = "reference-types"))]
 compile_error!("`js-sys` requires the `reference-types` target feature");

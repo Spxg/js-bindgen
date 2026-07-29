@@ -3,7 +3,7 @@ use std::mem;
 use proc_macro2::TokenStream;
 use syn::{Error, File, Item, ItemMod, Meta, Path, Result, parse_quote};
 
-use crate::ImportManager;
+use crate::hygiene::ImportManager;
 use crate::r#macro::{self, ErrorStack};
 
 pub fn file(input: &str, crate_: &str, js_sys: Option<Path>) -> Result<File> {
@@ -64,7 +64,7 @@ fn process_items(
 						}
 					};
 
-					match r#macro::internal(attr, foreign_mod, Some(crate_), Some(imports)) {
+					match r#macro::expand_file(attr, foreign_mod, crate_, imports) {
 						Ok(items) => match items.into_items() {
 							Ok(mut items) => output.append(&mut items),
 							Err(e) => error.push(e),

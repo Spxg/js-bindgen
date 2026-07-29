@@ -1,6 +1,7 @@
 use syn::parse_quote;
 
-use crate::{Hygiene, ImportManager, Type};
+use crate::hygiene::{Hygiene, ImportManager};
+use crate::r#type::Type;
 
 #[test]
 fn basic() {
