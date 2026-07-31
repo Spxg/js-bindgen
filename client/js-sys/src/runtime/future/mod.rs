@@ -48,8 +48,8 @@ extern "js-sys" {
 	#[js_sys(js_embed = "future.observe")]
 	fn observe(
 		promise: &JsValue,
-		resolve: Closure<dyn FnMut(JsValue)>,
-		reject: Closure<dyn FnMut(JsValue)>,
+		resolve: Closure<dyn Fn(JsValue)>,
+		reject: Closure<dyn Fn(JsValue)>,
 	);
 
 	#[js_sys(js_embed = "future.settle")]
@@ -91,8 +91,8 @@ impl<T> State<T> {
 fn callback<T: JsCast + 'static>(
 	state: Weak<RefCell<State<T>>>,
 	resolved: bool,
-) -> Closure<dyn FnMut(JsValue)> {
-	crate::closure!(js_sys = crate, dyn FnOnce(JsValue), move |value| {
+) -> Closure<dyn Fn(JsValue)> {
+	crate::closure!(js_sys = crate, dyn Fn(JsValue), move |value| {
 		let result = if resolved {
 			Ok(T::unchecked_from(value))
 		} else {
