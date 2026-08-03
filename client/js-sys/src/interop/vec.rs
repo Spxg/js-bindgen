@@ -190,7 +190,7 @@ const JS_VALUE_VEC_TO_JS: IntoJsConv = IntoJsConv::new(crate::const_concat!(
 	JS_PTR_LEN_ARGS,
 	")"
 ))
-.with_embed(("js_sys", "vec.js_value.take"));
+.with_embed("js_sys", "vec.js_value.take");
 
 /// Element-level policy for moving an owned vector from Rust to JavaScript.
 ///
@@ -216,6 +216,7 @@ pub unsafe trait VectorIntoJS: Sized {
 #[doc(hidden)]
 pub unsafe trait VectorFromJS: Sized {
 	const JS_CONV: FromJsConv;
+	const JS_SRET: Sret;
 
 	type Abi: WasmAbi;
 
@@ -236,6 +237,7 @@ unsafe impl<T: VectorIntoJS> IntoJS for Vec<T> {
 // SAFETY: Delegated to the element's vector conversion policy.
 unsafe impl<T: VectorFromJS> FromJS for Vec<T> {
 	const JS_CONV: Option<FromJsConv> = Some(T::JS_CONV);
+	const JS_SRET: Option<Sret> = Some(T::JS_SRET);
 
 	type Abi = T::Abi;
 
@@ -272,10 +274,8 @@ unsafe impl<T: JsCast> VectorFromJS for T {
 	const JS_CONV: FromJsConv = FromJsConv::slot1("$prepared[0]")
 		.slot2("$prepared[1]")
 		.prepare("this.#jsEmbed.js_sys['vec.js_value.from_js'].slots($value)")
-		.sret(Sret::Value(
-			"this.#jsEmbed.js_sys['vec.js_value.from_js'].sret",
-		))
-		.with_embed(("js_sys", "vec.js_value.from_js"));
+		.with_embed("js_sys", "vec.js_value.from_js");
+	const JS_SRET: Sret = Sret::Value("this.#jsEmbed.js_sys['vec.js_value.from_js'].sret");
 
 	type Abi = VecAbi<JsValue>;
 
@@ -314,10 +314,8 @@ unsafe impl VectorFromJS for String {
 	const JS_CONV: FromJsConv = FromJsConv::slot1("$prepared[0]")
 		.slot2("$prepared[1]")
 		.prepare("this.#jsEmbed.js_sys['vec.string.from_js'].slots($value)")
-		.sret(Sret::Value(
-			"this.#jsEmbed.js_sys['vec.string.from_js'].sret",
-		))
-		.with_embed(("js_sys", "vec.string.from_js"));
+		.with_embed("js_sys", "vec.string.from_js");
+	const JS_SRET: Sret = Sret::Value("this.#jsEmbed.js_sys['vec.string.from_js'].sret");
 
 	type Abi = VecAbi<JsValue>;
 
@@ -457,7 +455,7 @@ macro_rules! typed_vector {
 				JS_PTR_LEN_ARGS,
 				")"
 			))
-			.with_embed(("js_sys", concat!("vec.", $name, ".take")));
+			.with_embed("js_sys", concat!("vec.", $name, ".take"));
 
 			type Abi = VecAbi<Self>;
 
@@ -476,12 +474,12 @@ macro_rules! typed_vector {
 					$name,
 					".from_js'].slots($value)"
 				))
-				.sret(Sret::Value(concat!(
+				.with_embed("js_sys", concat!("vec.", $name, ".from_js"));
+			const JS_SRET: Sret = Sret::Value(concat!(
 					"this.#jsEmbed.js_sys['vec.",
 					$name,
 					".from_js'].sret"
-				)))
-				.with_embed(("js_sys", concat!("vec.", $name, ".from_js")));
+				));
 
 			type Abi = VecAbi<Self>;
 

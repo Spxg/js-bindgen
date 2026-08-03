@@ -30,7 +30,7 @@ fn global_wat_internal(input: TokenStream) -> Result<TokenStream, TokenStream> {
 	let mut custom_section = CustomSection::new();
 	parse_string_arguments(&mut input, Span::mixed_site(), &mut custom_section)?;
 
-	Ok(custom_section.output_framed("js_bindgen.wat"))
+	Ok(custom_section.output("js_bindgen.wat"))
 }
 
 #[proc_macro]
@@ -43,7 +43,7 @@ pub fn embed_js(input: ::proc_macro::TokenStream) -> ::proc_macro::TokenStream {
 }
 
 fn embed_js_internal(input: TokenStream) -> Result<TokenStream, TokenStream> {
-	js_internal(input, "js_bindgen.embed", false)
+	js_internal(input, "js_bindgen.embed")
 }
 
 #[proc_macro]
@@ -58,7 +58,7 @@ pub fn import_js(input: ::proc_macro::TokenStream) -> ::proc_macro::TokenStream 
 }
 
 fn import_js_internal(input: TokenStream) -> Result<TokenStream, TokenStream> {
-	js_internal(input, "js_bindgen.import", true)
+	js_internal(input, "js_bindgen.import")
 }
 
 #[proc_macro]
@@ -73,14 +73,10 @@ pub fn export_js(input: ::proc_macro::TokenStream) -> ::proc_macro::TokenStream 
 }
 
 fn export_js_internal(input: TokenStream) -> Result<TokenStream, TokenStream> {
-	js_internal(input, "js_bindgen.export", false)
+	js_internal(input, "js_bindgen.export")
 }
 
-fn js_internal(
-	input: TokenStream,
-	section: &str,
-	framed: bool,
-) -> Result<TokenStream, TokenStream> {
+fn js_internal(input: TokenStream, section: &str) -> Result<TokenStream, TokenStream> {
 	let mut input = input.into_iter().peekable();
 
 	let mut custom_section = CustomSection::new();
@@ -91,11 +87,7 @@ fn js_internal(
 	parse_required_embeds(&mut input, &mut custom_section)?;
 	parse_string_arguments(&mut input, Span::mixed_site(), &mut custom_section)?;
 
-	Ok(if framed {
-		custom_section.output_framed(section)
-	} else {
-		custom_section.output(section)
-	})
+	Ok(custom_section.output(section))
 }
 
 fn parse_required_embeds(
