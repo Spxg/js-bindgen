@@ -123,8 +123,7 @@ pub(crate) fn r#macro(
 				#raw_body
 			}
 
-			#[expect(dead_code, reason = "stored in a custom section")]
-			pub const WIRE: #macro_path::Wire =
+			const _WIRE: #macro_path::Wire =
 				#macro_path::Wire::exports(&[
 					#macro_path::WireExport::#descriptor_constructor(
 						#crate_name,
@@ -134,13 +133,11 @@ pub(crate) fn r#macro(
 						#wire_output,
 					),
 				]);
-			#[expect(dead_code, reason = "stored in a custom section")]
-			pub const LEN: ::core::primitive::usize = #macro_path::wire_blob_len(&WIRE);
+			const _LEN: ::core::primitive::usize = #macro_path::wire_blob_len(&_WIRE);
 
-			#[expect(dead_code, reason = "stored in a custom section")]
 			#[unsafe(link_section = "js_bindgen.wire")]
-			pub static WIRE_SECTION: #macro_path::WireBlob<LEN> =
-				#macro_path::WireBlob::new(&WIRE);
+			static _WIRE_SECTION: #macro_path::WireBlob<_LEN> =
+				#macro_path::WireBlob::new(&_WIRE);
 		};
 	})
 }
