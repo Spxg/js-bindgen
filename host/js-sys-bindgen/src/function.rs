@@ -30,12 +30,12 @@ pub(crate) struct FunctionImport {
 	pub(crate) output_type: Option<Type>,
 	pub(crate) binding: Option<FunctionBinding>,
 	pub(crate) suspending: bool,
-	pub(crate) kind: FunctionImportKind,
+	pub(crate) shim_kind: ImportShimKind,
 	pub(crate) macro_path: Path,
 }
 
 #[derive(Clone, Copy)]
-pub(crate) enum FunctionImportKind {
+pub(crate) enum ImportShimKind {
 	Normal,
 	ClosureFactory,
 }
@@ -245,7 +245,7 @@ pub(crate) fn expand_closure_factory(
 	item: ForeignItemFn,
 ) -> Result<(TokenStream, FunctionImport)> {
 	let (function, mut import) = expand(hygiene, None, crate_, &HashMap::new(), item)?;
-	import.kind = FunctionImportKind::ClosureFactory;
+	import.shim_kind = ImportShimKind::ClosureFactory;
 	Ok((function, import))
 }
 
@@ -707,7 +707,7 @@ impl FunctionPlan {
 			output_type: output_abi_ty.cloned(),
 			binding,
 			suspending: *suspending,
-			kind: FunctionImportKind::Normal,
+			shim_kind: ImportShimKind::Normal,
 			macro_path: macro_path.clone(),
 		}
 	}

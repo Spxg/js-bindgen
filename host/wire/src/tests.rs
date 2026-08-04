@@ -249,8 +249,8 @@ fn import_roundtrip() {
 		]
 	);
 	assert!(imports[1].suspending);
-	assert_eq!(imports[0].kind, WireImportKind::ClosureFactory);
-	assert_eq!(imports[1].kind, WireImportKind::Normal);
+	assert_eq!(imports[0].shim_kind, ImportShimKind::ClosureFactory);
+	assert_eq!(imports[1].shim_kind, ImportShimKind::Normal);
 	let Some(ImportCatch::Wasm(catch)) = &group.catch else {
 		panic!("expected Wasm catch metadata");
 	};

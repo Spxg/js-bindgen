@@ -288,11 +288,11 @@ pub(crate) fn render_import_groups(imports: Vec<FunctionImport>) -> TokenStream 
 				let name = &import.name;
 				let input_names = &import.input_names;
 				let suspending = import.suspending;
-				let constructor = match import.kind {
-					crate::function::FunctionImportKind::Normal => {
+				let constructor = match import.shim_kind {
+					crate::function::ImportShimKind::Normal => {
 						quote::quote!(#macro_path::WireImport::new)
 					}
-					crate::function::FunctionImportKind::ClosureFactory => {
+					crate::function::ImportShimKind::ClosureFactory => {
 						quote::quote!(#macro_path::WireImport::closure_factory)
 					}
 				};

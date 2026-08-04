@@ -4,9 +4,9 @@ use super::{Encoder, Sizer};
 use crate::abi::{JsCatch, WatCatch};
 use crate::{
 	IMPORT_CATCH_JAVASCRIPT, IMPORT_CATCH_WASM, IMPORT_CLOSURE_FACTORY, IMPORT_HAS_BINDING,
-	IMPORT_HAS_OUTPUT, IMPORT_OUTPUT_DIRECT, IMPORT_OUTPUT_RESULT, IMPORT_SUSPENDING, WireImport,
-	WireImportBinding, WireImportCatch, WireImportInput, WireImportInputType, WireImportKind,
-	WireImportOutput, WireImportOutputType, WireImportTypeTable,
+	IMPORT_HAS_OUTPUT, IMPORT_OUTPUT_DIRECT, IMPORT_OUTPUT_RESULT, IMPORT_SUSPENDING,
+	ImportShimKind, WireImport, WireImportBinding, WireImportCatch, WireImportInput,
+	WireImportInputType, WireImportOutput, WireImportOutputType, WireImportTypeTable,
 };
 
 impl<const N: usize> Encoder<N> {
@@ -269,7 +269,7 @@ impl WireImport {
 			| flag(self.output.is_some(), IMPORT_HAS_OUTPUT)
 			| flag(self.binding.is_some(), IMPORT_HAS_BINDING)
 			| flag(
-				matches!(self.kind, WireImportKind::ClosureFactory),
+				matches!(self.shim_kind, ImportShimKind::ClosureFactory),
 				IMPORT_CLOSURE_FACTORY,
 			));
 		encoder.count(self.inputs.len());

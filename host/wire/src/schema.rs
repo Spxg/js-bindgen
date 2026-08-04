@@ -186,7 +186,7 @@ impl WireImportOutput {
 
 /// The role of one generated `Wasm` adapter.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum WireImportKind {
+pub enum ImportShimKind {
 	Normal,
 	ClosureFactory,
 }
@@ -196,7 +196,7 @@ pub enum WireImportKind {
 pub struct WireImport {
 	pub(crate) module: &'static str,
 	pub(crate) name: &'static str,
-	pub(crate) kind: WireImportKind,
+	pub(crate) shim_kind: ImportShimKind,
 	pub(crate) inputs: &'static [WireImportInput],
 	pub(crate) output: Option<WireImportOutput>,
 	pub(crate) binding: Option<WireImportBinding>,
@@ -217,7 +217,7 @@ impl WireImport {
 		Self {
 			module,
 			name,
-			kind: WireImportKind::Normal,
+			shim_kind: ImportShimKind::Normal,
 			inputs,
 			output,
 			binding,
@@ -235,7 +235,7 @@ impl WireImport {
 		suspending: bool,
 	) -> Self {
 		let mut import = Self::new(module, name, inputs, output, binding, suspending);
-		import.kind = WireImportKind::ClosureFactory;
+		import.shim_kind = ImportShimKind::ClosureFactory;
 		import
 	}
 }

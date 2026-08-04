@@ -11,7 +11,7 @@ use crate::model::{
 use crate::{
 	Error, IMPORT_CATCH_JAVASCRIPT, IMPORT_CATCH_WASM, IMPORT_CLOSURE_FACTORY, IMPORT_FLAGS,
 	IMPORT_HAS_BINDING, IMPORT_HAS_OUTPUT, IMPORT_OUTPUT_DIRECT, IMPORT_OUTPUT_FLAGS,
-	IMPORT_OUTPUT_RESULT, IMPORT_SUSPENDING, PointerWidth, WireImportKind,
+	IMPORT_OUTPUT_RESULT, IMPORT_SUSPENDING, ImportShimKind, PointerWidth,
 };
 
 struct InputType<'a> {
@@ -246,10 +246,10 @@ impl<'a> Import<'a> {
 		let module = decoder.string()?;
 		let name = decoder.string()?;
 		let flags = decoder.flags("import", IMPORT_FLAGS)?;
-		let kind = if flags & IMPORT_CLOSURE_FACTORY == 0 {
-			WireImportKind::Normal
+		let shim_kind = if flags & IMPORT_CLOSURE_FACTORY == 0 {
+			ImportShimKind::Normal
 		} else {
-			WireImportKind::ClosureFactory
+			ImportShimKind::ClosureFactory
 		};
 
 		let input_count = decoder.count("import input")?;
@@ -319,7 +319,7 @@ impl<'a> Import<'a> {
 		Ok(Self {
 			module,
 			name,
-			kind,
+			shim_kind,
 			inputs,
 			output,
 			binding,

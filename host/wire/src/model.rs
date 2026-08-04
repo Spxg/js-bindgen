@@ -3,8 +3,8 @@
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 
+use crate::ImportShimKind;
 pub use crate::PointerWidth;
-use crate::WireImportKind;
 pub use crate::abi::ResultLayout;
 use crate::abi::{RefType, WatIndexType, WatType};
 
@@ -201,7 +201,7 @@ pub struct ImportBinding<'a> {
 pub struct Import<'a> {
 	pub module: &'a str,
 	pub name: &'a str,
-	pub kind: WireImportKind,
+	pub shim_kind: ImportShimKind,
 	pub inputs: Vec<ImportInput<'a>>,
 	pub output: Option<ImportOutput<'a>>,
 	pub binding: Option<ImportBinding<'a>>,
