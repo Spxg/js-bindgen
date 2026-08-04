@@ -77,7 +77,6 @@ pub fn processing(
 			Payload::CustomSection(c)
 				if matches!(c.name(), WAT_SECTION | IMPORT_SECTION | WIRE_SECTION) => {}
 			Payload::CustomSection(c) if c.name() == "js_bindgen.embed" => (),
-			Payload::CustomSection(c) if c.name() == "js_bindgen.export" => (),
 			// Register ourselves in the producer section.
 			Payload::CustomSection(c) if c.name() == "producers" => {
 				let KnownCustom::Producers(c) = c.as_known() else {

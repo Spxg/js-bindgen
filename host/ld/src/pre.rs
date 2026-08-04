@@ -259,14 +259,6 @@ fn process_object(
 			Payload::CustomSection(c) if c.name() == "js_bindgen.embed" => {
 				js_store.add_js_embeds(c)?;
 			}
-			// // Extract JS export wrappers and keep their WAT shim symbols alive.
-			// ```ignore
-			// Payload::CustomSection(c) if c.name() == "js_bindgen.export" => {
-			// 	for name in js_store.add_js_exports(c)? {
-			// 		add_args.push(format!("--export={name}").into());
-			// 	}
-			// }
-			// ```
 			_ => (),
 		}
 	}
