@@ -3,7 +3,8 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use crate::hazard::{
-	EmptySlot, FromJS, FromJsConv, IntoJS, IntoJsConv, JsCast, ReturnAbi, ReturnMode, Sret, WasmAbi,
+	EmptySlot, FromJS, FromJsConv, IntoJS, IntoJsConv, JsCast, RefFromJS, ReturnAbi, ReturnMode,
+	Sret, WasmAbi,
 };
 use crate::util::{JS_PTR_LEN_ARGS, PtrConst, PtrLength};
 use crate::{JsString, JsValue};
@@ -245,6 +246,13 @@ unsafe impl<T: VectorFromJS> FromJS for Vec<T> {
 		// SAFETY: `FromJS` guarantees that `raw` was produced by `T::JS_CONV`.
 		unsafe { T::vector_from_abi(raw) }.into_vec()
 	}
+}
+
+impl<T> RefFromJS for [T]
+where
+	Vec<T>: FromJS,
+{
+	type Anchor = Vec<T>;
 }
 
 // SAFETY: Every element is moved into its owned `JsValue` representation, and
