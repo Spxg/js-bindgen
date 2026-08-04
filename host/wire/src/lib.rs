@@ -16,11 +16,10 @@ mod decode;
 #[cfg(feature = "alloc")]
 pub mod model;
 
-pub use encode::{WireBlob, WireRecord, wire_blob_len};
-pub use schema::*;
-
 #[cfg(feature = "alloc")]
 pub use decode::{Error, ErrorKind, decode};
+pub use encode::{WireBlob, WireRecord, wire_blob_len};
+pub use schema::*;
 
 /// Identifies a wire record independently of its payload kind.
 pub const MAGIC: [u8; 8] = *b"JBGWIRE\0";

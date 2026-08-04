@@ -1,18 +1,18 @@
-use alloc::{rc::Rc, vec::Vec};
+use alloc::rc::Rc;
+use alloc::vec::Vec;
 
+use super::{Decode, Decoder, value};
+use crate::abi::WatType;
+use crate::model::{
+	DirectImportConversion, Embed, Import, ImportBinding, ImportCatch, ImportErrorMode,
+	ImportGroup, ImportInput, ImportOutput, ImportOutputAbi, ImportRetptr, ImportWriter, JsCatch,
+	Slot, WatCatch,
+};
 use crate::{
 	Error, IMPORT_CATCH_JAVASCRIPT, IMPORT_CATCH_WASM, IMPORT_CLOSURE_FACTORY, IMPORT_FLAGS,
 	IMPORT_HAS_BINDING, IMPORT_HAS_OUTPUT, IMPORT_OUTPUT_DIRECT, IMPORT_OUTPUT_FLAGS,
 	IMPORT_OUTPUT_RESULT, IMPORT_SUSPENDING, PointerWidth, WireImportKind,
-	abi::WatType,
-	model::{
-		DirectImportConversion, Embed, Import, ImportBinding, ImportCatch, ImportErrorMode,
-		ImportGroup, ImportInput, ImportOutput, ImportOutputAbi, ImportRetptr, ImportWriter,
-		JsCatch, Slot, WatCatch,
-	},
 };
-
-use super::{Decode, Decoder, value};
 
 struct InputType<'a> {
 	slots: Vec<Slot<'a>>,

@@ -1,15 +1,14 @@
 use alloc::vec::Vec;
 
+use super::{Decode, Decoder, value};
+use crate::model::{
+	Callee, Embed, Export, ExportInput, ExportInputConversion, ExportInputKind, ExportOutput,
+	FrameSlot, ResultLayout, ReturnFrame,
+};
 use crate::{
 	EXPORT_FLAGS, EXPORT_HAS_OUTPUT, EXPORT_OUTPUT_DIRECT, EXPORT_OUTPUT_FLAGS,
 	EXPORT_OUTPUT_RESULT, EXPORT_PROMISING, Error, PointerWidth, SLOT_COUNT,
-	model::{
-		Callee, Embed, Export, ExportInput, ExportInputConversion, ExportInputKind, ExportOutput,
-		FrameSlot, ResultLayout, ReturnFrame,
-	},
 };
-
-use super::{Decode, Decoder, value};
 
 pub(super) fn decode<'a>(
 	decoder: &mut Decoder<'a>,

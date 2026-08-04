@@ -1,4 +1,5 @@
-use alloc::{vec, vec::Vec};
+use alloc::vec;
+use alloc::vec::Vec;
 
 use crate::abi::{
 	FromJsConv, IntoJsConv, JsCatch as AbiJsCatch, JsEmbed, RefType, ReturnConv, ReturnMode, Sret,

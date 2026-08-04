@@ -5,13 +5,11 @@ mod import;
 
 use core::mem::size_of;
 
-use crate::{
-	MAGIC, VERSION, WAT_IMPORT_FUNCTION, WAT_IMPORT_TABLE, WAT_IMPORT_TAG, Wire,
-	abi::{
-		FromJsConv, IntoJsConv, JsEmbed, Sret, WatImport, WatImportKind, WatLocal, WatSlot, WatType,
-	},
-	schema::WireKind,
+use crate::abi::{
+	FromJsConv, IntoJsConv, JsEmbed, Sret, WatImport, WatImportKind, WatLocal, WatSlot, WatType,
 };
+use crate::schema::WireKind;
+use crate::{MAGIC, VERSION, WAT_IMPORT_FUNCTION, WAT_IMPORT_TABLE, WAT_IMPORT_TAG, Wire};
 
 /// A raw, self-contained wire record without custom-section framing.
 #[derive(Clone, Copy)]
@@ -38,7 +36,8 @@ impl<const N: usize> WireRecord<N> {
 	}
 }
 
-/// A length-prefixed wire record stored in the `js_bindgen.wire` custom section.
+/// A length-prefixed wire record stored in the `js_bindgen.wire` custom
+/// section.
 #[repr(C)]
 pub struct WireBlob<const N: usize> {
 	record_len: [u8; 4],

@@ -1,11 +1,10 @@
 use core::mem::size_of;
 
+use super::{Encoder, Sizer};
 use crate::{
 	EXPORT_OUTPUT_DIRECT, EXPORT_OUTPUT_RESULT, WireExport, WireExportCallee, WireExportInput,
 	WireExportOutput, WireExportOutputType,
 };
-
-use super::{Encoder, Sizer};
 
 impl<const N: usize> Encoder<N> {
 	pub(super) const fn exports(&mut self, exports: &[WireExport]) {

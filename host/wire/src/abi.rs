@@ -33,7 +33,8 @@ impl WatType {
 		}
 	}
 
-	/// Returns an instruction that places this type's default value on the stack.
+	/// Returns an instruction that places this type's default value on the
+	/// stack.
 	#[must_use]
 	#[cfg(feature = "alloc")]
 	pub const fn zero(self) -> &'static str {

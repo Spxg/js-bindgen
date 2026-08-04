@@ -1,13 +1,12 @@
 //! Canonical model consumed by JavaScript and `WAT` `renderers`.
 
-use alloc::{rc::Rc, vec::Vec};
+use alloc::rc::Rc;
+use alloc::vec::Vec;
 
 pub use crate::PointerWidth;
+use crate::WireImportKind;
 pub use crate::abi::ResultLayout;
-use crate::{
-	WireImportKind,
-	abi::{RefType, WatIndexType, WatType},
-};
+use crate::abi::{RefType, WatIndexType, WatType};
 
 /// One primitive `Wasm` `ABI` slot.
 #[derive(Clone, Debug, Eq, PartialEq)]

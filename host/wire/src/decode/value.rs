@@ -1,12 +1,10 @@
-use alloc::{rc::Rc, vec::Vec};
-
-use crate::{
-	Error, ErrorKind, SLOT_COUNT, WAT_IMPORT_FUNCTION, WAT_IMPORT_TABLE, WAT_IMPORT_TAG,
-	abi::{RefType, WatIndexType, WatType},
-	model::{Embed, Slot, WatConversion, WatImport, WatImportKind, WatLocal},
-};
+use alloc::rc::Rc;
+use alloc::vec::Vec;
 
 use super::{Decode, Decoder};
+use crate::abi::{RefType, WatIndexType, WatType};
+use crate::model::{Embed, Slot, WatConversion, WatImport, WatImportKind, WatLocal};
+use crate::{Error, ErrorKind, SLOT_COUNT, WAT_IMPORT_FUNCTION, WAT_IMPORT_TABLE, WAT_IMPORT_TAG};
 
 pub(super) type WireSlots<'a> = [Option<Slot<'a>>; SLOT_COUNT];
 

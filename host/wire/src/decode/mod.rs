@@ -6,7 +6,8 @@ mod value;
 
 use core::{fmt, str};
 
-use crate::{KIND_EXPORT, KIND_IMPORT, MAGIC, PointerWidth, VERSION, model::Record};
+use crate::model::Record;
+use crate::{KIND_EXPORT, KIND_IMPORT, MAGIC, PointerWidth, VERSION};
 
 /// A type that can be decoded from a wire record.
 pub(crate) trait Decode<'de>: Sized {

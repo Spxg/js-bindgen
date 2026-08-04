@@ -1,14 +1,13 @@
 use core::mem::size_of;
 
+use super::{Encoder, Sizer};
+use crate::abi::{JsCatch, WatCatch};
 use crate::{
 	IMPORT_CATCH_JAVASCRIPT, IMPORT_CATCH_WASM, IMPORT_CLOSURE_FACTORY, IMPORT_HAS_BINDING,
 	IMPORT_HAS_OUTPUT, IMPORT_OUTPUT_DIRECT, IMPORT_OUTPUT_RESULT, IMPORT_SUSPENDING, WireImport,
 	WireImportBinding, WireImportCatch, WireImportInput, WireImportInputType, WireImportKind,
 	WireImportOutput, WireImportOutputType, WireImportTypeTable,
-	abi::{JsCatch, WatCatch},
 };
-
-use super::{Encoder, Sizer};
 
 impl<const N: usize> Encoder<N> {
 	pub(super) const fn imports(&mut self, table: &WireImportTypeTable, imports: &[WireImport]) {

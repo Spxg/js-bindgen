@@ -1,8 +1,9 @@
 use std::fmt::Write;
 
-use crate::wire::wat::{WatImports, WatLocals, write_conversion};
 use js_bindgen_wire::abi::WatType;
 use js_bindgen_wire::model::{Callee, Export, ExportInput, ExportInputKind, ExportOutput, Slot};
+
+use crate::wire::wat::{WatImports, WatLocals, write_conversion};
 
 struct ExportRenderer<'export, 'wire> {
 	index: usize,
@@ -46,9 +47,8 @@ pub(super) fn render(exports: &[Export<'_>]) -> Option<String> {
 		imports.insert(
 			"js_sys.closure.table",
 			format!(
-				"(import \"env\" \"__indirect_function_table\" (table \
-			 $js_sys.closure.table (@sym (name \"__indirect_function_table\")) \
-			 {pointer_type} 0 funcref))",
+				"(import \"env\" \"__indirect_function_table\" (table $js_sys.closure.table (@sym \
+				 (name \"__indirect_function_table\")) {pointer_type} 0 funcref))",
 			),
 		);
 	}
@@ -62,8 +62,8 @@ pub(super) fn render(exports: &[Export<'_>]) -> Option<String> {
 		imports.insert(
 			"__stack_pointer",
 			format!(
-				"(import \"env\" \"__stack_pointer\" \
-			 (global $__stack_pointer (mut {pointer_type})))",
+				"(import \"env\" \"__stack_pointer\" (global $__stack_pointer (mut \
+				 {pointer_type})))",
 			),
 		);
 	}
@@ -140,8 +140,8 @@ impl ExportRenderer<'_, '_> {
 		};
 
 		format!(
-			"(import \"env\" \"symbol\" (func ${identifier} \
-			 (@sym (name \"{symbol}\")){retptr}{parameters}{result}))",
+			"(import \"env\" \"symbol\" (func ${identifier} (@sym (name \
+			 \"{symbol}\")){retptr}{parameters}{result}))",
 		)
 	}
 
@@ -168,8 +168,7 @@ impl ExportRenderer<'_, '_> {
 		};
 
 		format!(
-			"(type $js_sys.closure.call.{} (func{retptr} \
-			 (param {}){parameters}{result}))",
+			"(type $js_sys.closure.call.{} (func{retptr} (param {}){parameters}{result}))",
 			self.index,
 			self.pointer_type(),
 		)
@@ -259,8 +258,8 @@ impl ExportRenderer<'_, '_> {
 		if let Some(ExportOutput::Indirect { frame, .. }) = self.export.output.as_ref() {
 			write!(
 				wat,
-				"\n  global.get $__stack_pointer\n  {}.const {}\n  \
-				 {}.sub\n  local.tee $retptr\n  global.set $__stack_pointer",
+				"\n  global.get $__stack_pointer\n  {}.const {}\n  {}.sub\n  local.tee $retptr\n  \
+				 global.set $__stack_pointer",
 				self.pointer_type(),
 				frame.size,
 				self.pointer_type(),
@@ -297,10 +296,8 @@ impl ExportRenderer<'_, '_> {
 				}
 				write!(
 					wat,
-					"\n  local.get $js_sys.closure.data\n  \
-				 {}.load offset={call_shim_offset}\n  \
-				 call_indirect $js_sys.closure.table \
-				 (type $js_sys.closure.call.{}) (@reloc)",
+					"\n  local.get $js_sys.closure.data\n  {}.load offset={call_shim_offset}\n  \
+					 call_indirect $js_sys.closure.table (type $js_sys.closure.call.{}) (@reloc)",
 					self.pointer_type(),
 					self.index,
 				)
@@ -331,8 +328,8 @@ impl ExportRenderer<'_, '_> {
 					}
 					write!(
 						wat,
-						"\n  local.get $retptr\n  {}.const {}\n  \
-					 {}.add\n  global.set $__stack_pointer",
+						"\n  local.get $retptr\n  {}.const {}\n  {}.add\n  global.set \
+						 $__stack_pointer",
 						self.pointer_type(),
 						frame.size,
 						self.pointer_type(),

@@ -2,13 +2,11 @@
 
 use core::mem::size_of;
 
-use crate::{
-	EXPORT_HAS_OUTPUT, EXPORT_PROMISING,
-	abi::{
-		FromJsConv, IntoJsConv, JsCatch, JsEmbed, ResultLayout, ReturnConv, ReturnMode, Sret,
-		WatCatch, WatSlot, WatType,
-	},
+use crate::abi::{
+	FromJsConv, IntoJsConv, JsCatch, JsEmbed, ResultLayout, ReturnConv, ReturnMode, Sret, WatCatch,
+	WatSlot, WatType,
 };
+use crate::{EXPORT_HAS_OUTPUT, EXPORT_PROMISING};
 
 /// The target's native pointer width.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -93,7 +91,8 @@ impl WireImportOutputType {
 pub enum WireImportCatch {
 	/// JavaScript wraps the call in `try`/`catch` and records the exception.
 	JavaScript(JsCatch),
-	/// Wasm exception handling catches and records the exception in the `ABI` shim.
+	/// Wasm exception handling catches and records the exception in the `ABI`
+	/// shim.
 	Wasm(WatCatch),
 }
 

@@ -73,11 +73,13 @@ fn render_promising(
 
 	if prepares.is_empty() {
 		format!(
-			"(() => {{\n    const $promising = {callable}\n    return ({parameters}) => $promising({arguments}){then}\n}})()"
+			"(() => {{\n    const $promising = {callable}\n    return ({parameters}) => \
+			 $promising({arguments}){then}\n}})()"
 		)
 	} else {
 		format!(
-			"(() => {{\n    const $promising = {callable}\n    return ({parameters}) => {{\n{prepares}        return $promising({arguments}){then}\n    }}\n}})()"
+			"(() => {{\n    const $promising = {callable}\n    return ({parameters}) => \
+			 {{\n{prepares}        return $promising({arguments}){then}\n    }}\n}})()"
 		)
 	}
 }

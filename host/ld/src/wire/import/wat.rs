@@ -88,8 +88,7 @@ struct Shim<'group, 'wire> {
 fn render_wat_import(imports: &mut WatImports, import: &Import<'_>) {
 	let identifier = format!("{}.import.{}", import.module, import.name);
 	let mut wat = format!(
-		"(import \"{}\" \"{}\" (func ${identifier} \
-		 (@sym (name \"{identifier}\"))",
+		"(import \"{}\" \"{}\" (func ${identifier} (@sym (name \"{identifier}\"))",
 		import.module, import.name,
 	);
 

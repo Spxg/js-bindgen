@@ -12,8 +12,9 @@ use syn::{
 use xxhash_rust::xxh3::xxh3_128;
 
 use crate::export::{ExportAbi, lower_abi};
+use crate::function;
 use crate::hygiene::Hygiene;
-use crate::{function, r#macro::render_import_groups};
+use crate::r#macro::render_import_groups;
 
 mod keyword {
 	syn::custom_keyword!(js_sys);
