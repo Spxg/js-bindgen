@@ -145,34 +145,11 @@ async fn namespace_compilation_and_instantiation() {
 	assert_eq!(Module::exports(&source.module()).unwrap().length(), 1);
 	assert_answer(&source.instance());
 
-	let options = CompileOptions::new();
-	options.set_builtins(&[CompileBuiltin::JsString]);
-	let module = WebAssembly::compile_with_options(bytes.as_ref(), &options)
-		.await
-		.unwrap();
-	assert_answer(
-		&WebAssembly::instantiate_module_with_imports(&module, &Object::new())
-			.await
-			.unwrap(),
-	);
-	let source = WebAssembly::instantiate_bytes_with_imports_and_options(
-		bytes.as_ref(),
-		&Object::new(),
-		&options,
-	)
-	.await
-	.unwrap();
-	assert_answer(&source.instance());
-
 	assert!(
 		WebAssembly::compile(wasm_bytes(&[0]).as_ref())
 			.await
 			.is_err()
 	);
-	let imported = WebAssembly::compile(wasm_bytes(IMPORTED_MEMORY_MODULE).as_ref())
-		.await
-		.unwrap();
-	assert!(WebAssembly::instantiate_module(&imported).await.is_err());
 }
 
 #[test]

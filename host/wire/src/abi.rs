@@ -319,7 +319,7 @@ pub struct WatConv {
 	pub imports: &'static [WatImport],
 	pub locals: &'static [WatLocal],
 	pub instruction: &'static str,
-	pub boundary: WatType,
+	pub js: WatType,
 }
 
 impl WatConv {
@@ -328,33 +328,34 @@ impl WatConv {
 		imports: &'static [WatImport],
 		locals: &'static [WatLocal],
 		instruction: &'static str,
-		boundary: WatType,
+		js: WatType,
 	) -> Self {
 		Self {
 			imports,
 			locals,
 			instruction,
-			boundary,
+			js,
 		}
 	}
 }
 
-/// One primitive `WebAssembly` slot and its boundary conversion.
+/// The Rust-facing type of one primitive `WebAssembly` slot and its optional
+/// JavaScript-facing conversion.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct WatSlot {
-	pub abi: WatType,
+	pub rust: WatType,
 	pub wat: Option<WatConv>,
 }
 
 impl WatSlot {
 	#[must_use]
-	pub const fn new(abi: WatType, wat: Option<WatConv>) -> Self {
-		Self { abi, wat }
+	pub const fn new(rust: WatType, wat: Option<WatConv>) -> Self {
+		Self { rust, wat }
 	}
 
 	#[must_use]
-	pub const fn plain(abi: WatType) -> Self {
-		Self::new(abi, None)
+	pub const fn plain(rust: WatType) -> Self {
+		Self::new(rust, None)
 	}
 }
 

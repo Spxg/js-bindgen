@@ -1,6 +1,6 @@
 use core::mem::size_of;
 
-use super::{Encoder, Sizer};
+use super::{Encoder, Sizer, flag, wire_u32};
 use crate::abi::{JsCatch, WatCatch};
 use crate::{
 	IMPORT_CATCH_JAVASCRIPT, IMPORT_CATCH_WASM, IMPORT_CLOSURE_FACTORY, IMPORT_HAS_BINDING,
@@ -302,17 +302,4 @@ impl WireImport {
 			binding.size(sizer);
 		}
 	}
-}
-
-const fn flag(enabled: bool, value: u8) -> u8 {
-	if enabled { value } else { 0 }
-}
-
-#[expect(
-	clippy::cast_possible_truncation,
-	reason = "the function asserts that the value fits in u32"
-)]
-const fn wire_u32(value: usize) -> u32 {
-	assert!(value <= u32::MAX as usize);
-	value as u32
 }

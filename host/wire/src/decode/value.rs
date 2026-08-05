@@ -22,18 +22,18 @@ pub(super) enum Sret<'a> {
 
 impl<'de> Decode<'de> for Slot<'de> {
 	fn decode(decoder: &mut Decoder<'de>) -> Result<Self, Error> {
-		let abi = decode_wat_type(decoder)?;
+		let rust = decode_wat_type(decoder)?;
 		let wat = if decoder.boolean("slot WAT presence")? {
 			Some(WatConversion {
 				imports: decode_imports(decoder)?,
 				locals: decode_locals(decoder)?,
 				instruction: decoder.string()?,
-				boundary: decode_wat_type(decoder)?,
+				js: decode_wat_type(decoder)?,
 			})
 		} else {
 			None
 		};
-		Ok(Self { abi, wat })
+		Ok(Self { rust, wat })
 	}
 }
 

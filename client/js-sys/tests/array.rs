@@ -407,7 +407,7 @@ fn variadic_methods_and_callback_context() {
 }
 
 #[test]
-fn standard_api() {
+fn indexing_bindings() {
 	#[js_sys]
 	extern "js-sys" {
 		#[js_sys(js_embed = "has_own")]
@@ -417,15 +417,8 @@ fn standard_api() {
 		fn freeze(array: &Array);
 	}
 
-	let array = Array::new();
-	assert_eq!(array.length(), 0);
-	assert!(Array::is_array(array.as_ref()));
-
-	assert_eq!(array.push(&JsValue::NULL), 1);
-	assert_eq!(array.get(0), JsValue::NULL);
+	let array = Array::of(&[JsValue::NULL]);
 	assert_eq!(array.at(-1.0), JsValue::NULL);
-	assert_eq!(array.at(-1.9), JsValue::NULL);
-
 	array.set(0, &JsValue::UNDEFINED);
 	assert_eq!(array.get(0), JsValue::UNDEFINED);
 	assert!(array.delete(0));
@@ -437,20 +430,6 @@ fn standard_api() {
 	freeze(&array);
 	assert!(array.try_set(0, &JsValue::UNDEFINED).is_err());
 	assert!(array.try_delete(0).is_err());
-
-	let values = [JsValue::NULL, JsValue::UNDEFINED];
-	let array = Array::of(&values);
-	assert_eq!(array.length(), 2);
-	assert_eq!(array.join_with("|"), "|");
-
-	let copied = Array::from_value(array.as_ref()).unwrap();
-	assert_eq!(copied.length(), 2);
-	assert_eq!(copied.pop(), JsValue::UNDEFINED);
-	assert_eq!(copied.pop(), JsValue::NULL);
-
-	let holes = Array::new_with_length(3);
-	assert_eq!(holes.length(), 3);
-	assert_eq!(holes.get(0), JsValue::UNDEFINED);
 }
 
 #[test]

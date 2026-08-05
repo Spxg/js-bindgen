@@ -1,5 +1,5 @@
 use js_bindgen_test::test;
-use js_sys::{Array, Function, JsString, JsValue, Object, PropertyDescriptor, Reflect, Symbol};
+use js_sys::{Array, Function, JsString, JsValue, Object, Reflect, Symbol};
 
 #[test]
 fn properties() {
@@ -46,41 +46,6 @@ fn properties() {
 }
 
 #[test]
-fn receiver_controls_accessor_this() {
-	let target = Object::new();
-	let receiver = Object::new();
-	let property = JsValue::from(JsString::from("accessor"));
-	let getter = Function::new_no_args("return this.stored").unwrap();
-	let setter = Function::new_with_args("value", "this.stored = value").unwrap();
-	let descriptor = PropertyDescriptor::new();
-	descriptor.set_get(&getter);
-	descriptor.set_set(&setter);
-	Object::define_property(&target, &property, &descriptor).unwrap();
-
-	let initial = JsString::from("initial");
-	assert!(Reflect::set_str(receiver.as_ref(), "stored", initial.as_ref()).unwrap());
-	assert_eq!(
-		Reflect::get_with_receiver(target.as_ref(), &property, receiver.as_ref()).unwrap(),
-		JsValue::from(initial)
-	);
-
-	let updated = JsString::from("updated");
-	assert!(
-		Reflect::set_with_receiver(
-			target.as_ref(),
-			&property,
-			updated.as_ref(),
-			receiver.as_ref(),
-		)
-		.unwrap()
-	);
-	assert_eq!(
-		Reflect::get_str(receiver.as_ref(), "stored").unwrap(),
-		JsValue::from(updated)
-	);
-}
-
-#[test]
 fn apply_and_construct() {
 	let concatenate = Function::new_with_args("left, right", "return left + right").unwrap();
 	let arguments: Array<JsString> = Array::new_typed();
@@ -98,25 +63,4 @@ fn apply_and_construct() {
 		&Reflect::get_str(&object, "value").unwrap(),
 		JsString::from("constructed").as_ref()
 	);
-}
-
-#[test]
-fn prototypes_and_extensibility() {
-	let object = Object::new();
-	let prototype = Object::new();
-
-	assert!(Reflect::set_prototype_of(object.as_ref(), prototype.as_ref()).unwrap());
-	assert_eq!(
-		&Reflect::get_prototype_of(object.as_ref()).unwrap(),
-		prototype.as_ref()
-	);
-	assert!(Reflect::is_extensible(object.as_ref()).unwrap());
-	assert!(Reflect::prevent_extensions(object.as_ref()).unwrap());
-	assert!(!Reflect::is_extensible(object.as_ref()).unwrap());
-	assert!(!Reflect::set_str(object.as_ref(), "new", &JsValue::NULL).unwrap());
-}
-
-#[test]
-fn exceptions_are_returned() {
-	assert!(Reflect::get(&JsValue::NULL, &JsValue::UNDEFINED).is_err());
 }

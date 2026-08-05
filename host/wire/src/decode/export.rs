@@ -45,7 +45,7 @@ impl<'a> Export<'a> {
 		if matches!(callee, Callee::Closure { .. }) {
 			decoder.ensure(
 				inputs.first().is_some_and(|input| {
-					input.slots.len() == 1 && input.slots[0].abi == pointer_width.wat_type()
+					input.slots.len() == 1 && input.slots[0].rust == pointer_width.wat_type()
 				}),
 				"closure export data must occupy one pointer slot",
 			)?;

@@ -42,7 +42,7 @@ pub(super) fn decode<'a>(
 	} else {
 		let pointer = InputType::decode(decoder)?;
 		decoder.ensure(
-			pointer.slots.len() == 1 && pointer.slots[0].abi == pointer_width.wat_type(),
+			pointer.slots.len() == 1 && pointer.slots[0].rust == pointer_width.wat_type(),
 			"import return pointer does not match the target pointer width",
 		)?;
 		Some(pointer)
@@ -188,7 +188,7 @@ impl<'a> OutputType<'a> {
 			if result {
 				decoder.ensure(
 					matches!(
-						slots[0].abi,
+						slots[0].rust,
 						WatType::I32 | WatType::I64 | WatType::F32 | WatType::F64
 					),
 					"unsupported direct Result return slot",

@@ -1,6 +1,6 @@
 use std::env;
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote_spanned};
 use syn::ext::IdentExt;
 use syn::parse::Parser;
@@ -117,12 +117,14 @@ pub(crate) fn r#macro(
 
 		const _: () = {
 			#[unsafe(export_name = #raw_export_name)]
-			extern "C" fn export_raw(
+			extern "C" fn __export_(
 				#(#raw_inputs),*
 			) #raw_output {
 				#raw_body
 			}
+		};
 
+		const _: () = {
 			const _WIRE: #macro_path::Wire =
 				#macro_path::Wire::exports(&[
 					#macro_path::WireExport::#descriptor_constructor(
@@ -165,7 +167,7 @@ pub(crate) fn lower_abi<'a>(
 
 	for (index, ty) in inputs.into_iter().enumerate() {
 		let span = ty.span();
-		let argument = format_ident!("arg{index}", span = span);
+		let argument = format_ident!("arg{index}", span = Span::mixed_site());
 		let parameter = LitStr::new(&argument.to_string(), span);
 		let reference = match ty {
 			Type::Reference(reference) if reference.mutability.is_some() => {
@@ -189,7 +191,7 @@ pub(crate) fn lower_abi<'a>(
 		let mut slots = Vec::new();
 
 		for slot in 1_usize..=4 {
-			let slot_ident = format_ident!("arg{index}_{}", slot - 1, span = span);
+			let slot_ident = format_ident!("arg{index}_{}", slot - 1, span = Span::mixed_site());
 			let slot_alias = format_ident!("FromJsSlot{slot}", span = span);
 			let raw_type = quote_spanned!(span=> #js_sys::wire::#slot_alias<#js_ty>);
 
@@ -199,7 +201,7 @@ pub(crate) fn lower_abi<'a>(
 		}
 
 		if let Some(reference) = reference {
-			let anchor = format_ident!("arg{index}_anchor", span = span);
+			let anchor = format_ident!("arg{index}_anchor", span = Span::mixed_site());
 			let ty = &reference.elem;
 
 			join_inputs.push(quote_spanned! {span=>

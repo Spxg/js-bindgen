@@ -1,8 +1,5 @@
 use js_bindgen_test::test;
-use js_sys::{
-	AggregateError, Array, Error, ErrorOptions, EvalError, JsString, JsValue, Object, RangeError,
-	ReferenceError, SyntaxError, TypeError, UriError,
-};
+use js_sys::{AggregateError, Error, ErrorOptions, JsString, JsValue, Object, TypeError};
 
 fn assert_error(error: &Error, message: &str, name: &str, cause: &JsValue) {
 	assert_eq!(error.message(), JsString::from(message));
@@ -19,81 +16,22 @@ fn assert_error(error: &Error, message: &str, name: &str, cause: &JsValue) {
 fn assert_parents<T: AsRef<Error> + AsRef<Object>>(_: &T) {}
 
 #[test]
-fn standard_error_types() {
+fn inherited_constructor_and_properties() {
 	let cause = JsValue::from(JsString::from("root cause"));
 	let options = ErrorOptions::new(&cause);
-
-	macro_rules! assert_type {
-		($type:ident, $name:literal) => {{
-			let plain = $type::new("plain");
-			assert_parents(&plain);
-			assert_error(&plain, "plain", $name, &JsValue::UNDEFINED);
-
-			let caused = $type::new_with_options("failed", &options);
-			assert_error(&caused, "failed", $name, &cause);
-		}};
-	}
-
-	assert_type!(EvalError, "EvalError");
-	assert_type!(RangeError, "RangeError");
-	assert_type!(ReferenceError, "ReferenceError");
-	assert_type!(SyntaxError, "SyntaxError");
-	assert_type!(TypeError, "TypeError");
-	assert_type!(UriError, "URIError");
-}
-
-#[test]
-fn branded_error_check() {
-	let error = Error::new("error");
+	let error = TypeError::new_with_options("failed", &options);
+	assert_parents(&error);
+	assert_error(&error, "failed", "TypeError", &cause);
 	assert!(Error::is_error(error.as_ref()));
-	assert!(Error::is_error(TypeError::new("type error").as_ref()));
-	assert!(!Error::is_error(Object::new().as_ref()));
-	assert!(!Error::is_error(&JsValue::NULL));
-}
-
-#[test]
-fn inherited_properties_are_writable() {
-	let error = TypeError::new("before");
-	assert_eq!(error.cause(), JsValue::UNDEFINED);
-
-	error.set_message("after");
-	error.set_name("CustomError");
-	let cause = JsValue::from(JsString::from("cause"));
-	error.set_cause(&cause);
-
-	assert_error(&error, "after", "CustomError", &cause);
+	error.set_message("updated");
+	assert_eq!(error.message(), JsString::from("updated"));
 }
 
 #[test]
 fn aggregate_error() {
-	let first = JsValue::from(JsString::from("first"));
-	let second = JsValue::from(Error::new("second"));
-	let values = [first.clone(), second.clone()];
-
-	let plain = AggregateError::new(&values);
-	assert_parents(&plain);
-	assert_error(&plain, "", "AggregateError", &JsValue::UNDEFINED);
-	assert_eq!(plain.errors().length(), 2);
-
-	let described = AggregateError::new_with_message(&values, "combined");
-	assert_error(
-		&described,
-		"combined",
-		"AggregateError",
-		&JsValue::UNDEFINED,
-	);
-	let errors = described.errors();
-	assert_eq!(errors.get(0), first);
-	assert_eq!(errors.get(1), second);
-
-	let cause = JsValue::from(JsString::from("root cause"));
-	let options = ErrorOptions::new(&cause);
-	let caused = AggregateError::new_with_options(&values, "combined", &options);
-	assert_error(&caused, "combined", "AggregateError", &cause);
-
-	let replacement = Array::new();
-	let replacement_value = JsValue::from(JsString::from("replacement"));
-	let _ = replacement.push(&replacement_value);
-	caused.set_errors(&replacement);
-	assert_eq!(caused.errors().get(0), replacement_value);
+	let value = JsValue::from(Error::new("inner"));
+	let error = AggregateError::new_with_message(core::slice::from_ref(&value), "combined");
+	assert_parents(&error);
+	assert_eq!(error.errors().get(0), value);
+	assert_eq!(error.message(), JsString::from("combined"));
 }

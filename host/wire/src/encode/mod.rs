@@ -319,7 +319,7 @@ impl Sizer {
 
 impl WatSlot {
 	const fn encode<const N: usize>(&self, encoder: &mut Encoder<N>) {
-		encoder.u8(self.abi.tag());
+		encoder.u8(self.rust.tag());
 		match self.wat {
 			Some(wat) => {
 				encoder.u8(1);
@@ -336,7 +336,7 @@ impl WatSlot {
 					index += 1;
 				}
 				encoder.string(wat.instruction);
-				encoder.u8(wat.boundary.tag());
+				encoder.u8(wat.js.tag());
 			}
 			None => encoder.u8(0),
 		}
@@ -525,9 +525,13 @@ const fn template_mask(templates: &[Option<&str>; 4]) -> u8 {
 	clippy::cast_possible_truncation,
 	reason = "the function asserts that the value fits in u32"
 )]
-const fn wire_u32(value: usize) -> u32 {
+pub(crate) const fn wire_u32(value: usize) -> u32 {
 	assert!(value <= u32::MAX as usize);
 	value as u32
+}
+
+pub(crate) const fn flag(enabled: bool, value: u8) -> u8 {
+	if enabled { value } else { 0 }
 }
 
 #[expect(

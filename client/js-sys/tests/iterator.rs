@@ -4,9 +4,8 @@ use core::task::{Context, Poll, Waker};
 use js_bindgen_test::test;
 use js_sys::hazard::JsCast;
 use js_sys::{
-	Array, AsyncIterator, Function, IteratorZipKeyedOptions, IteratorZipMode, IteratorZipOptions,
-	JsFuture, JsIterator, JsString, JsValue, Number, Object, Reflect, closure, js_sys,
-	try_async_iter, try_iter,
+	Array, AsyncIterator, JsFuture, JsIterator, JsString, JsValue, Number, js_sys, try_async_iter,
+	try_iter,
 };
 
 js_bindgen::embed_js!(
@@ -92,22 +91,6 @@ js_bindgen::embed_js!(
 	"    get value() {{ throw new Error('value') }},",
 	"}} }} }})",
 );
-js_bindgen::embed_js!(
-	module = "iterator",
-	name = "features.joint",
-	"() => typeof Iterator.zip === 'function' && typeof Iterator.zipKeyed === 'function'",
-);
-js_bindgen::embed_js!(
-	module = "iterator",
-	name = "features.includes",
-	"() => typeof Iterator.prototype.includes === 'function'",
-);
-js_bindgen::embed_js!(
-	module = "iterator",
-	name = "features.join",
-	"() => typeof Iterator.prototype.join === 'function'",
-);
-
 js_bindgen::embed_js!(
 	module = "iterator",
 	name = "async.strings",
@@ -458,14 +441,6 @@ extern "js-sys" {
 	#[js_sys(js_embed = "sync.calls")]
 	fn sync_calls(value: &JsValue) -> u32;
 
-	#[js_sys(js_embed = "features.joint")]
-	fn joint_iteration_supported() -> bool;
-
-	#[js_sys(js_embed = "features.includes")]
-	fn iterator_includes_supported() -> bool;
-
-	#[js_sys(js_embed = "features.join")]
-	fn iterator_join_supported() -> bool;
 }
 
 fn strings(values: &[&str]) -> Array<JsString> {
@@ -624,242 +599,6 @@ fn iterator_from_accepts_iterables_and_iterator_like_objects() {
 			JsString::from("three"),
 		]
 	);
-}
-
-#[test]
-fn proposed_iterator_helpers() {
-	let options = IteratorZipOptions::new();
-	options.set_mode(IteratorZipMode::Longest);
-	let padding = strings(&["left padding", "right padding"]);
-	options.set_padding(&padding);
-	assert_eq!(
-		Reflect::get_str(options.as_ref(), "mode").unwrap(),
-		JsValue::from(JsString::from("longest"))
-	);
-	assert_eq!(
-		Reflect::get_str(options.as_ref(), "padding").unwrap(),
-		JsValue::from(padding.clone())
-	);
-
-	let keyed_options = IteratorZipKeyedOptions::new();
-	keyed_options.set_mode(IteratorZipMode::Strict);
-	let keyed_padding = Object::new();
-	keyed_options.set_padding(&keyed_padding);
-	assert_eq!(
-		Reflect::get_str(keyed_options.as_ref(), "mode").unwrap(),
-		JsValue::from(JsString::from("strict"))
-	);
-	assert_eq!(
-		Reflect::get_str(keyed_options.as_ref(), "padding").unwrap(),
-		JsValue::from(keyed_padding.clone())
-	);
-
-	if joint_iteration_supported() {
-		let first = strings(&["one", "two"]);
-		let second = strings(&["three"]);
-		let iterables = Array::<Array<JsString>>::new_typed();
-		let _ = iterables.push(&first);
-		let _ = iterables.push(&second);
-
-		let rows = JsIterator::zip_with_options(&iterables, &options)
-			.unwrap()
-			.into_iter()
-			.collect::<Result<Vec<_>, _>>()
-			.unwrap();
-		assert_eq!(rows.len(), 2);
-		assert_eq!(rows[0].get(0), JsValue::from(JsString::from("one")));
-		assert_eq!(rows[0].get(1), JsValue::from(JsString::from("three")));
-		assert_eq!(rows[1].get(0), JsValue::from(JsString::from("two")));
-		assert_eq!(
-			rows[1].get(1),
-			JsValue::from(JsString::from("right padding"))
-		);
-
-		let keyed = Object::new();
-		Reflect::set_str(keyed.as_ref(), "first", first.as_ref()).unwrap();
-		Reflect::set_str(keyed.as_ref(), "second", second.as_ref()).unwrap();
-		let row = JsIterator::zip_keyed(&keyed)
-			.unwrap()
-			.into_iter()
-			.next()
-			.unwrap()
-			.unwrap();
-		assert_eq!(
-			Reflect::get_str(row.as_ref(), "first").unwrap(),
-			JsValue::from(JsString::from("one"))
-		);
-		assert_eq!(
-			Reflect::get_str(row.as_ref(), "second").unwrap(),
-			JsValue::from(JsString::from("three"))
-		);
-	}
-
-	if iterator_includes_supported() {
-		assert!(
-			strings(&["one", "two"])
-				.values()
-				.includes(&JsString::from("two"))
-				.unwrap()
-		);
-		assert!(
-			strings(&["one", "two"])
-				.values()
-				.includes_from(&JsString::from("two"), 1.0)
-				.unwrap()
-		);
-	}
-
-	if iterator_join_supported() {
-		assert_eq!(
-			strings(&["one", "two"]).values().join().unwrap(),
-			JsString::from("one,two")
-		);
-		assert_eq!(
-			strings(&["one", "two"])
-				.values()
-				.join_with_separator(" - ")
-				.unwrap(),
-			JsString::from("one - two")
-		);
-	}
-}
-
-#[test]
-fn lazy_iterator_helpers() {
-	let uppercase = Function::new_with_args("value", "return value.toUpperCase()").unwrap();
-	let mapped = strings(&["one", "two"]).values().map(&uppercase).unwrap();
-	assert_eq!(
-		dynamic_strings(mapped),
-		[JsString::from("ONE"), JsString::from("TWO")]
-	);
-
-	let has_three_letters = Function::new_with_args("value", "return value.length === 3").unwrap();
-	let filtered = strings(&["one", "four", "two"])
-		.values()
-		.filter(&has_three_letters)
-		.unwrap();
-	assert_eq!(
-		filtered.into_iter().collect::<Result<Vec<_>, _>>().unwrap(),
-		[JsString::from("one"), JsString::from("two")]
-	);
-
-	let duplicated =
-		Function::new_with_args("value", "return [value, value.toUpperCase()]").unwrap();
-	let flattened = strings(&["a", "b"]).values().flat_map(&duplicated).unwrap();
-	assert_eq!(
-		dynamic_strings(flattened),
-		[
-			JsString::from("a"),
-			JsString::from("A"),
-			JsString::from("b"),
-			JsString::from("B"),
-		]
-	);
-
-	let taken = strings(&["one", "two", "three"])
-		.values()
-		.take(2.0)
-		.unwrap();
-	assert_eq!(
-		taken.into_iter().collect::<Result<Vec<_>, _>>().unwrap(),
-		[JsString::from("one"), JsString::from("two")]
-	);
-
-	let dropped = strings(&["one", "two", "three"])
-		.values()
-		.drop(1.0)
-		.unwrap();
-	assert_eq!(
-		dropped.into_iter().collect::<Result<Vec<_>, _>>().unwrap(),
-		[JsString::from("two"), JsString::from("three")]
-	);
-}
-
-#[test]
-fn consuming_iterator_helpers() {
-	let values = strings(&["one", "two", "three"]);
-	let has_three_letters = Function::new_with_args("value", "return value.length === 3").unwrap();
-	let is_two = Function::new_with_args("value", "return value === 'two'").unwrap();
-
-	assert!(!values.values().every(&has_three_letters).unwrap());
-	assert!(values.values().some(&is_two).unwrap());
-	assert_eq!(
-		JsString::unchecked_from(values.values().find(&is_two).unwrap()),
-		"two"
-	);
-	assert_eq!(
-		values
-			.values()
-			.find(&Function::new_no_args("return false").unwrap())
-			.unwrap(),
-		JsValue::UNDEFINED
-	);
-	let always = Function::new_no_args("return true").unwrap();
-	assert_eq!(
-		Array::of(&[JsValue::NULL]).values().find(&always).unwrap(),
-		JsValue::NULL
-	);
-
-	let array = values.values().to_array().unwrap();
-	assert_eq!(
-		array.to_array::<3>().unwrap(),
-		[
-			JsString::from("one"),
-			JsString::from("two"),
-			JsString::from("three"),
-		]
-	);
-
-	let concatenate =
-		Function::new_with_args("accumulator, value", "return accumulator + value").unwrap();
-	let reduced = strings(&["a", "b", "c"])
-		.values()
-		.reduce(&concatenate)
-		.unwrap();
-	assert_eq!(JsString::unchecked_from(reduced), "abc");
-
-	let initial = JsValue::from(JsString::from("prefix:"));
-	let reduced = strings(&["a", "b"])
-		.values()
-		.reduce_with_initial_value(&concatenate, &initial)
-		.unwrap();
-	assert_eq!(JsString::unchecked_from(reduced), "prefix:ab");
-
-	let calls = std::rc::Rc::new(std::cell::Cell::new(0_u32));
-	let observed = calls.clone();
-	let callback = closure!(dyn FnMut(JsString, u32), move |value, index| {
-		assert!(value.length() > 0.0);
-		observed.set(observed.get() + index + 1);
-	});
-	values.values().for_each(&callback).unwrap();
-	assert_eq!(calls.get(), 6);
-}
-
-#[test]
-fn iterator_helper_errors_are_reported() {
-	assert!(strings(&["one"]).values().take(-1.0).is_err());
-	assert!(strings(&["one"]).values().drop(f64::NAN).is_err());
-
-	let throwing = Function::new_no_args("throw new Error('boom')").unwrap();
-	assert!(strings(&["one"]).values().every(&throwing).is_err());
-	assert!(strings(&[]).values().reduce(&throwing).is_err());
-
-	let mut mapped = strings(&["one"])
-		.values()
-		.map(&throwing)
-		.unwrap()
-		.into_iter();
-	assert!(mapped.next().unwrap().is_err());
-	assert!(mapped.next().is_none());
-
-	let invalid_flat_map = Function::new_no_args("return 1").unwrap();
-	let mut flattened = strings(&["one"])
-		.values()
-		.flat_map(&invalid_flat_map)
-		.unwrap()
-		.into_iter();
-	assert!(flattened.next().unwrap().is_err());
-	assert!(flattened.next().is_none());
 }
 
 #[test]

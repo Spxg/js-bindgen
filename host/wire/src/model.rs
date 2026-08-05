@@ -8,19 +8,19 @@ pub use crate::PointerWidth;
 pub use crate::abi::ResultLayout;
 use crate::abi::{RefType, WatIndexType, WatType};
 
-/// One primitive `Wasm` `ABI` slot.
+/// One primitive `Wasm` slot.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Slot<'a> {
-	pub abi: WatType,
+	pub rust: WatType,
 	pub wat: Option<WatConversion<'a>>,
 }
 
 impl<'a> Slot<'a> {
 	#[must_use]
-	pub fn boundary(&self) -> WatType {
+	pub fn js(&self) -> WatType {
 		self.wat
 			.as_ref()
-			.map_or(self.abi, |conversion| conversion.boundary)
+			.map_or(self.rust, |conversion| conversion.js)
 	}
 
 	#[must_use]
@@ -43,10 +43,11 @@ impl<'a> Slot<'a> {
 	}
 }
 
-/// `WAT` required to translate one slot across the JavaScript boundary.
+/// `WAT` required to translate one slot between its Rust- and
+/// JavaScript-facing types.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WatConversion<'a> {
-	pub boundary: WatType,
+	pub js: WatType,
 	pub imports: Rc<[WatImport<'a>]>,
 	pub locals: Rc<[WatLocal<'a>]>,
 	pub instruction: &'a str,

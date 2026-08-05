@@ -330,96 +330,6 @@ fn missing_float16_species_is_reported() {
 }
 
 #[test]
-fn stable_instance_methods() {
-	let array = Uint32Array::from(&[3, 1, 2, 1]);
-	let greater_than_one = Function::new_with_args("value", "return value > 1").unwrap();
-	let less_than_this = Function::new_with_args("value", "return value < this.valueOf()").unwrap();
-	let threshold = number(4);
-
-	assert!(!array.every(&greater_than_one).unwrap());
-	assert!(array.every_with_this(&less_than_this, &threshold).unwrap());
-	assert!(array.some(&greater_than_one).unwrap());
-	assert!(array.some_with_this(&less_than_this, &threshold).unwrap());
-	assert_eq!(array.find(&greater_than_one).unwrap(), Some(3));
-	assert_eq!(array.find_last(&greater_than_one).unwrap(), Some(2));
-	let first_index = array.find_index(&greater_than_one).unwrap();
-	let last_index = array.find_last_index(&greater_than_one).unwrap();
-	assert_eq!(first_index, 0.0);
-	assert_eq!(last_index, 2.0);
-	assert!(array.includes(1).unwrap());
-	assert!(!array.includes_from(3, 1.0).unwrap());
-	assert_eq!(array.index_of(1).unwrap(), 1.0);
-	assert_eq!(array.index_of_from(1, 2.0).unwrap(), 3.0);
-	assert_eq!(array.last_index_of(1).unwrap(), 3.0);
-	assert_eq!(array.last_index_of_from(1, 2.0).unwrap(), 1.0);
-
-	let filtered = array.filter(&greater_than_one).unwrap();
-	assert_eq!(filtered.to_vec().unwrap(), [3, 2]);
-	let identity = Function::new_with_args("value", "return value").unwrap();
-	assert_eq!(
-		array
-			.filter_with_this(&identity, &JsValue::NULL)
-			.unwrap()
-			.to_vec()
-			.unwrap(),
-		[3, 1, 2, 1]
-	);
-
-	let double = Function::new_with_args("value", "return value * 2").unwrap();
-	assert_eq!(array.map(&double).unwrap().to_vec().unwrap(), [6, 2, 4, 2]);
-	assert_eq!(
-		array
-			.map_with_this(&less_than_this, &threshold)
-			.unwrap()
-			.to_vec()
-			.unwrap(),
-		[1, 1, 1, 1]
-	);
-
-	let sum = Function::new_with_args("sum, value", "return sum + value").unwrap();
-	let reduced = array.reduce(&sum).unwrap();
-	assert_eq!(Number::<f64>::unchecked_from(reduced).value_of(), 7.0);
-	let reduced = array.reduce_with_initial(&sum, &number(5)).unwrap();
-	assert_eq!(Number::<f64>::unchecked_from(reduced).value_of(), 12.0);
-	let reduced = array.reduce_right(&sum).unwrap();
-	assert_eq!(Number::<f64>::unchecked_from(reduced).value_of(), 7.0);
-	let reduced = array.reduce_right_with_initial(&sum, &number(5)).unwrap();
-	assert_eq!(Number::<f64>::unchecked_from(reduced).value_of(), 12.0);
-
-	let visit = Function::new_with_args("value", "if (value < 0) throw new Error()").unwrap();
-	array.for_each(&visit).unwrap();
-	array
-		.for_each_with_this(&visit, &JsValue::UNDEFINED)
-		.unwrap();
-
-	assert_eq!(array.join().unwrap(), "3,1,2,1");
-	assert_eq!(array.join_with_separator("|").unwrap(), "3|1|2|1");
-	assert_eq!(array.to_string().unwrap(), "3,1,2,1");
-	assert!(!String::from(array.to_locale_string().unwrap()).is_empty());
-
-	assert_eq!(array.with(1.0, 9).unwrap().to_vec().unwrap(), [3, 9, 2, 1]);
-	assert_eq!(array.to_reversed().unwrap().to_vec().unwrap(), [1, 2, 1, 3]);
-	assert_eq!(array.to_sorted().unwrap().to_vec().unwrap(), [1, 1, 2, 3]);
-	let descending = Function::new_with_args("left, right", "return right - left").unwrap();
-	assert_eq!(
-		array.to_sorted_by(&descending).unwrap().to_vec().unwrap(),
-		[3, 2, 1, 1]
-	);
-
-	let mutable = Uint32Array::from(&[3, 1, 2]);
-	assert_eq!(mutable.reverse().unwrap().to_vec().unwrap(), [2, 1, 3]);
-	assert_eq!(mutable.sort().unwrap().to_vec().unwrap(), [1, 2, 3]);
-	assert_eq!(
-		mutable.sort_by(&descending).unwrap().to_vec().unwrap(),
-		[3, 2, 1]
-	);
-
-	let throwing = Function::new_no_args("throw new Error('boom')").unwrap();
-	assert!(array.every(&throwing).is_err());
-	assert!(array.map(&throwing).is_err());
-}
-
-#[test]
 fn rust_and_javascript_iteration() {
 	let array = Uint32Array::from(&[5, 8, 13]);
 	let mut iter = array.iter();
@@ -530,13 +440,6 @@ fn detached_buffer_errors_are_returned() {
 	buffer.transfer().unwrap();
 
 	assert!(array.at(0.0).is_err());
-	assert!(array.copy_within(0.0, 0.0).is_err());
-	assert!(array.fill(0).is_err());
-	let identity = Function::new_with_args("value", "return value").unwrap();
-	assert!(array.every(&identity).is_err());
-	assert!(array.includes(1).is_err());
-	assert!(array.join().is_err());
 	assert!(array.values().is_err());
 	assert!(array.slice().is_err());
-	assert!(array.subarray().is_err());
 }

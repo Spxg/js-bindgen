@@ -6,7 +6,6 @@ use crate::abi::{
 	FromJsConv, IntoJsConv, JsCatch, JsEmbed, ResultLayout, ReturnConv, ReturnMode, Sret, WatCatch,
 	WatSlot, WatType,
 };
-use crate::{EXPORT_HAS_OUTPUT, EXPORT_PROMISING};
 
 /// The target's native pointer width.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -341,7 +340,7 @@ pub struct WireExport {
 	pub(crate) inputs: &'static [WireExportInput],
 	pub(crate) output: Option<WireExportOutput>,
 	pub(crate) callee: WireExportCallee,
-	pub(crate) flags: u8,
+	pub(crate) promising: bool,
 }
 
 impl WireExport {
@@ -360,7 +359,7 @@ impl WireExport {
 			inputs,
 			output,
 			callee,
-			flags: flag(promising, EXPORT_PROMISING) | flag(output.is_some(), EXPORT_HAS_OUTPUT),
+			promising,
 		}
 	}
 
@@ -504,8 +503,4 @@ const fn validate_imports(table: &WireImportTypeTable, imports: &[WireImport]) {
 		}
 		index += 1;
 	}
-}
-
-const fn flag(enabled: bool, value: u8) -> u8 {
-	if enabled { value } else { 0 }
 }

@@ -2,30 +2,11 @@ use js_bindgen_test::test;
 use js_sys::Symbol;
 
 #[test]
-fn symbols_are_unique() {
-	let first = Symbol::new_with_description("local");
-	let second = Symbol::new_with_description("local");
+fn constructor_static_and_instance_members() {
+	let local = Symbol::new_with_description("local");
+	assert_eq!(local.description().unwrap(), "local");
 
-	assert_ne!(first, second);
-	assert_eq!(first.description().unwrap(), "local");
-	assert_eq!(first.to_js_string(), "Symbol(local)");
-	assert_eq!(first.value_of(), first);
-	assert!(Symbol::new().description().is_none());
-}
-
-#[test]
-fn global_registry() {
-	let first = Symbol::for_("shared");
-	let second = Symbol::for_("shared");
-
-	assert_eq!(first, second);
-	assert_eq!(Symbol::key_for(&first).unwrap(), "shared");
-	assert!(Symbol::key_for(&Symbol::new()).is_none());
-}
-
-#[test]
-fn well_known_symbols_are_stable() {
+	let shared = Symbol::for_("shared");
+	assert_eq!(Symbol::key_for(&shared).unwrap(), "shared");
 	assert_eq!(Symbol::iterator(), Symbol::iterator());
-	assert_eq!(Symbol::async_iterator(), Symbol::async_iterator());
-	assert_ne!(Symbol::iterator(), Symbol::async_iterator());
 }

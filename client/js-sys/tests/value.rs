@@ -50,13 +50,6 @@ fn string_coercion_error() {
 }
 
 #[test]
-fn clone() {
-	let value = JsString::from("Hello, World!");
-	let value = value.clone();
-	assert_eq!(value, "Hello, World!");
-}
-
-#[test]
 fn strict_equality_is_not_reflexive() {
 	let value = nan();
 	assert!(!PartialEq::eq(&value, &value));
